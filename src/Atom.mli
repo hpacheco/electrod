@@ -30,3 +30,6 @@ val hash : t -> int
 
 include Intf.Print.S with type t := t
 include Intf.COMPARE with type t := t
+
+val to_yojson : t -> Yojson.Safe.t
+val of_yojson : Yojson.Safe.t -> (t, string) result

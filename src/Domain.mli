@@ -90,4 +90,7 @@ val shr : t -> Tuple_set.t option
 val sha : t -> Tuple_set.t option
 (** Returns this shift as a set of triples (None if it doesn't exist). *)
 
+val to_yojson : t -> Yojson.Safe.t
+val of_yojson : Yojson.Safe.t -> (t, string) result
+
 include Intf.Print.S with type t := t

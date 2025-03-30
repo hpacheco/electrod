@@ -43,7 +43,7 @@ val union : t -> t -> t
     Requires: [b1] and [b2] have the same arity. *)
 
 val inter : t -> t -> t
-(** Computes the intersecion of two tuple sets [b1] and [b2]. *)
+(** Computes the intersection of two tuple sets [b1] and [b2]. *)
 
 val product : t -> t -> t
 (** [product b1 b2] computes the {b flat} product of [b1] and [b2].
@@ -100,3 +100,6 @@ val to_iter : t -> Tuple.t CCSet.iter
 val to_list : t -> Tuple.t list
 
 include Intf.Print.S with type t := t
+
+val to_yojson : t -> Yojson.Safe.t
+val of_yojson : Yojson.Safe.t -> (t, string) result

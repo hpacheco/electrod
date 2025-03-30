@@ -42,3 +42,9 @@ end)
 include P
 
 let pp_list atoms = Fmtc.(braces_ @@ list ~sep:sp pp) atoms
+
+let to_yojson (a : t) : Yojson.Safe.t = Symbol.to_yojson a.sym
+let of_yojson (json : Yojson.Safe.t) : (t, string) result =
+    match json with
+      | `String s -> Ok (atom s)  
+      | _ -> Error "Expected a JSON string for Atom.t"

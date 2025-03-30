@@ -19,6 +19,8 @@
 module type ATOMIC_PROPOSITION = sig
   type t
 
+  val dump : unit -> Yojson.Safe.t
+  val restore : Domain.t -> Yojson.Safe.t -> unit
   val make : Domain.t -> Name.t -> Tuple.t -> t
   val compare : t -> t -> int
 
@@ -204,6 +206,8 @@ module type MODEL = sig
 
       If [no_analysis] is set to true, then no analysis is done (but the files are
       still generated and may be kept) and the function returns [No_trace]!*)
+
+  val backtrace : bmc:int option -> string * string -> Outcome.t
 
   val pp : ?margin:int -> Format.formatter -> t -> unit
 end

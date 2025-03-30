@@ -873,3 +873,5 @@ class virtual ['c] fold :
     method private visit_string : 'env. 'env -> string -> string
     method private visit_unit : 'env. 'env -> unit -> unit
   end
+
+

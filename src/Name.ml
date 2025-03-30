@@ -65,6 +65,17 @@ let table = S.create 271
 
 let name s = S.hashcons table s
 
+let to_string (n : t) : string =
+    n.node
+
+let to_yojson (n : t) : Yojson.Safe.t =
+    `String (n.node)
+
+let of_yojson (json : Yojson.Safe.t) : (t, string) result =
+    match json with
+    | `String s -> Ok (name s)
+    | _ -> Error "Expected a JSON string for Name.t"
+
 let dummy =
   let c = ref 0 in
   fun () -> name @@ "dummy!" ^ string_of_int @@ CCRef.get_then_incr c

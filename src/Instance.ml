@@ -47,6 +47,16 @@ let rename atom_renaming name_renaming inst =
            Tuple_set.rename atom_renaming ts ))
   |> of_list
 
+let to_yojson (map : t) : Yojson.Safe.t =
+  let json_list =
+    Map.fold (fun key value acc ->
+      let key_str = Name.to_string key in 
+      let value_json = Tuple_set.to_yojson value in  
+      (key_str, value_json) :: acc 
+    ) map []
+  in
+  `Assoc json_list  
+
 module P = Intf.Print.Mixin (struct
   type nonrec t = t
 

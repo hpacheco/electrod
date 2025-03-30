@@ -197,3 +197,20 @@ module Set = CCSet.Make (struct
 
   let compare = compare
 end)
+
+let to_yojson (arr : t) : Yojson.Safe.t =
+  `Tuple (Array.to_list arr |> List.map Atom.to_yojson)
+
+let of_yojson (json : Yojson.Safe.t) : (t, string) result =
+  match json with
+  | `Tuple lst ->
+      let rec convert acc = function
+        | [] -> Ok (Array.of_list (List.rev acc))
+        | x :: xs -> (
+            match Atom.of_yojson x with
+            | Ok atom -> convert (atom :: acc) xs
+            | Error e -> Error ("Atom.of_yojson failed: " ^ e))
+      in
+      convert [] lst
+  | _ -> Error "Expected a JSON tuple"
+

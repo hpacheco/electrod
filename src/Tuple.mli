@@ -75,3 +75,7 @@ val to_list : t -> Atom.t list
 
 include Intf.Print.S with type t := t
 module Set : CCSet.S with type elt = t
+
+val to_yojson : t -> Yojson.Safe.t
+val of_yojson : Yojson.Safe.t -> (t, string) result
+

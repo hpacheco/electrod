@@ -59,3 +59,6 @@ val inferred_arity : t -> int
 val rename : (Atom.t, Atom.t) List.Assoc.t -> t -> t
 
 include Intf.Print.S with type t := t
+
+val to_yojson : t -> Yojson.Safe.t
+val of_yojson : Yojson.Safe.t -> (t, string) result

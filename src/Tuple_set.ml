@@ -184,3 +184,19 @@ let transitive_closure_is b =
 
 let mem t bnd = TS.mem t bnd
 let rename atom_renaming ts = TS.map (Tuple.rename atom_renaming) ts
+
+let to_yojson (set : t) : Yojson.Safe.t =
+  `List (List.map Tuple.to_yojson (TS.elements set))
+
+let of_yojson (json : Yojson.Safe.t) : (t, string) result =
+  match json with
+  | `List lst ->
+      let rec convert acc = function
+        | [] -> Ok (of_tuples acc)
+        | x :: xs -> (
+            match Tuple.of_yojson x with
+            | Ok tuple -> convert (tuple :: acc) xs
+            | Error e -> Error ("Tuple.of_yojson failed: " ^ e))
+      in
+      convert [] lst
+  | _ -> Error "Expected a JSON list"

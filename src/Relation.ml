@@ -17,6 +17,7 @@ open Containers
 type t =
   | Const of { name : Name.t; arity : int; scope : Scope.t }
   | Var of { name : Name.t; arity : int; scope : Scope.t; fby : Scope.t option }
+  [@@deriving yojson]
 
 let const name arity scope = Const { name; arity; scope }
 let var name arity scope fby = Var { name; arity; scope; fby }

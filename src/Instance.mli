@@ -49,4 +49,6 @@ val to_map : t -> Tuple_set.t Name.Map.t
 val rename :
   (Atom.t, Atom.t) List.Assoc.t -> (Name.t, Name.t) List.Assoc.t -> t -> t
 
+val to_yojson : t -> Yojson.Safe.t
+
 include Intf.Print.S with type t := t

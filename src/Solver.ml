@@ -35,6 +35,8 @@ let wrap bw n =
 module type ATOMIC_PROPOSITION = sig
   type t
 
+  val dump : unit -> Yojson.Safe.t
+  val restore : Domain.t -> Yojson.Safe.t -> unit
   val make : Domain.t -> Name.t -> Tuple.t -> t
   val compare : t -> t -> int
   val compare_string : t -> t -> int
@@ -402,6 +404,8 @@ module type MODEL = sig
     pp_generated:bool ->
     t ->
     Outcome.t
+    
+  val backtrace : bmc:int option -> string * string -> Outcome.t
 
   val pp : ?margin:int -> Format.formatter -> t -> unit
 end

@@ -4,6 +4,7 @@
  (promote
   (until-clean)
   (into ..))
+ (preprocess (pps ppx_deriving_yojson))
  (libraries
   electrod.libelectrod
   dune-build-info
@@ -13,4 +14,4 @@
   fmt.tty
   logs.cli
   logs.fmt
-  stdlib-shims))
+  stdlib-shims yojson ppx_deriving_yojson ))

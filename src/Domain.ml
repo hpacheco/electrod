@@ -15,7 +15,7 @@
 open Containers
 module Map = Name.Map
 
-type t = { decls : Relation.t Map.t; bitwidth : int }
+type t = { decls : Relation.t Map.t; bitwidth : int } 
 
 let equal dom1 dom2 =
   Map.equal Relation.equal dom1.decls dom2.decls
@@ -167,6 +167,42 @@ let get_shift domain name =
 let shl domain = get_shift domain Name.shl
 let sha domain = get_shift domain Name.sha
 let shr domain = get_shift domain Name.shr
+
+let to_yojson (x : t) : Yojson.Safe.t =
+  let decls_json =
+    `Assoc
+      (Map.bindings x.decls
+      |> List.map (fun (key, value) -> (Name.to_string key, Relation.to_yojson value)))
+  in
+  `Assoc [ ("decls", decls_json); ("bitwidth", `Int x.bitwidth) ]
+
+let of_yojson (json : Yojson.Safe.t) : (t, string) result =
+  match json with
+  | `Assoc fields -> (
+      try
+        let decls_json = List.assoc ~eq:String.equal "decls" fields in
+        let bitwidth_json = List.assoc ~eq:String.equal "bitwidth" fields in
+        let bitwidth =
+          match bitwidth_json with
+          | `Int n -> n
+          | _ -> failwith "bitwidth must be an integer"
+        in
+        let decls =
+          match decls_json with
+          | `Assoc decl_list ->
+              List.fold_left
+                (fun acc (key, value) ->
+                  match Relation.of_yojson value with
+                  | Ok rel -> Map.add (Name.name key) rel acc
+                  | Error err -> failwith err)
+                Map.empty decl_list
+          | _ -> failwith "decls must be an object"
+        in
+        Ok { decls; bitwidth }
+      with
+      | Not_found -> Error "Missing fields: decls or bitwidth"
+      | Failure msg -> Error msg)
+  | _ -> Error "Expected a JSON object"
 
 module P = Intf.Print.Mixin (struct
   type nonrec t = t

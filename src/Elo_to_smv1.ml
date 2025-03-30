@@ -46,12 +46,18 @@ module SMV_atom : Solver.ATOMIC_PROPOSITION = struct
 
   let names_and_tuples = HT.create 179
 
+  let cache =
+    CCCache.unbounded
+      ~eq:(Pair.equal Name.equal Tuple.equal)
+      ~hash:(Hash.pair Name.hash Tuple.hash)
+      1793
+
   (* usually less than that many VARs *)
 
   let rel_sep = "-"
   let atom_sep = Fmtc.minus
 
-  let make domain =
+  let make (domain : Domain.t) : Name.t -> Tuple.t -> t =
     let name_tuple (name, tuple) =
       let rel = Domain.get_exn name domain in
       let dom_arity =
@@ -83,16 +89,33 @@ module SMV_atom : Solver.ATOMIC_PROPOSITION = struct
       HT.add names_and_tuples sym (name, tuple);
       { sym; dom_arity; const; partial }
     in
-    let cache =
-      CCCache.unbounded
-        ~eq:(Pair.equal Name.equal Tuple.equal)
-        ~hash:(Hash.pair Name.hash Tuple.hash)
-        1793
-    in
     fun name tuple -> CCCache.with_cache cache name_tuple (name, tuple)
 
+  let dump () =
+      let items = 
+        HT.fold (fun sym (name, tuple) acc ->
+          let v = `Tuple [Name.to_yojson name;Tuple.to_yojson tuple] in
+          v :: acc
+        ) names_and_tuples []
+      in `List items
+
+  let restore (domain : Domain.t) (json : Yojson.Safe.t) = 
+      match json with
+      | `List fields ->
+          let make_aux = make domain in
+          let make_json = function
+                | `Tuple [n_json; t_json] -> (
+                    match (Name.of_yojson n_json, Tuple.of_yojson t_json) with
+                    | (Ok name, Ok tuple) -> let _ = make_aux name tuple in ()
+                    | (Error e, _) | (_, Error e) -> failwith "restore error")
+                | _ -> failwith "Expected a JSON array with two elements"  
+          in List.iter make_json fields
+      | _ -> failwith "Expected a JSON object"
+
   let split at = HT.get names_and_tuples at.sym
-  let split_string str = HT.get names_and_tuples (Symbol.make str)
+  let split_string str =
+      (*HT.iter (fun key _value -> Printf.printf "Key: %s\n" (Symbol.to_string key)) names_and_tuples;*)
+      HT.get names_and_tuples (Symbol.make str)
 end
 
 module SMV_LTL = Smv.Make_SMV_LTL (SMV_atom)
@@ -104,6 +127,9 @@ module Elo_to_SMV_model =
 
 let pp = SMV_file_format.pp
 let analyze = SMV_file_format.analyze
+let backtrace = SMV_file_format.backtrace
+
+(*let dump = Elo_to_SMV_LTL.Ltl.Atomic.dump*)
 
 let run
     ((elo, temporal_symmetry, symmetry_offset, single_formula) :

@@ -46,3 +46,13 @@ include Intf.Print.Mixin (struct
 
   let pp = pp
 end)
+
+let to_string (n : t) : string = n.node
+
+let to_yojson (n : t) : Yojson.Safe.t =
+    `String (n.node)
+
+let of_yojson (json : Yojson.Safe.t) : (t, string) result =
+    match json with
+    | `String s -> Ok (make s)
+    | _ -> Error "Expected a JSON string for Symbol.t"

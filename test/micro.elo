@@ -1,0 +1,20 @@
+univ : { On#0 Off#0 _A####0 _B####0 -8 -7 -6 -5 -4 -3 -2 -1 0 1 2 3 4 5 6 7 };
+
+const _A### :1 { ( _A####0 ) };
+const _B### :1 { ( _B####0 ) };
+var this##Light#input :2 { } { ( _A####0 On#0 ) ( _A####0 Off#0 ) ( _B####0 On#0 ) ( _B####0 Off#0 ) };
+var this##Light#state :2 { } { ( _A####0 On#0 ) ( _A####0 Off#0 ) ( _B####0 On#0 ) ( _B####0 Off#0 ) };
+const Int##min :1 { ( -8 ) };
+const Int##zero :1 { ( 0 ) };
+const Int##max :1 { ( 7 ) };
+const Int##next :2 { ( -8 -7 ) ( -7 -6 ) ( -6 -5 ) ( -5 -4 ) ( -4 -3 ) ( -3 -2 ) ( -2 -1 ) ( -1 0 ) ( 0 1 ) ( 1 2 ) ( 2 3 ) ( 3 4 ) ( 4 5 ) ( 5 6 ) ( 6 7 ) };
+const seq##Int :1 { ( 0 ) ( 1 ) ( 2 ) ( 3 ) };
+const String :1 { };
+const this##On :1 { ( On#0 ) };
+const this##Off :1 { ( Off#0 ) };
+const ints :1 { ( -8 ) ( -7 ) ( -6 ) ( -5 ) ( -4 ) ( -3 ) ( -2 ) ( -1 ) ( 0 ) ( 1 ) ( 2 ) ( 3 ) ( 4 ) ( 5 ) ( 6 ) ( 7 ) };
+
+run
+(always ((_A### . this##Light#input) = (_B### . this##Light#input)) or 
+ eventually (!((_A### . this##Light#state) = (_B### . this##Light#state))));
+true;

@@ -56,29 +56,9 @@ let ensure_session_leader () =
   with Unix.Unix_error (EPERM, "setsid", _) ->
     Msg.debug (fun m -> m "`setsid` failed, continuing.")
 
-let main style_renderer verbosity tool file scriptfile keep_files no_analysis
+let main_forward style_renderer verbosity tool file scriptfile keep_files no_analysis
     print_generated outcome_format long_names bmc temporal_symmetry
     symmetry_offset single_formula =
-  let long_names =
-    (* Debug ==> long names *)
-    match verbosity with Some Logs.Debug -> true | None | Some _ -> long_names
-  in
-  Printexc.record_backtrace true;
-  Fmt_tty.setup_std_outputs ?style_renderer ();
-  Logs.set_reporter (Logs_fmt.reporter ~pp_header ());
-  Logs.set_level ~all:true verbosity;
-  let version =
-    match Build_info.V1.version () with
-    | None -> "(development version)"
-    | Some v -> Build_info.V1.Version.to_string v
-  in
-  Logs.app (fun m ->
-      m "%a"
-        Fmtc.(styled `Bold string)
-        ("electrod (C) 2016-2024 ONERA " ^ version));
-  ensure_session_leader ();
-  Msg.debug (fun m -> m "CWD = %s" (Sys.getcwd ()));
-  Msg.debug (fun m -> m "PATH = %s" (Sys.getenv "PATH"));
   Logs.app (fun m -> m "Processing file: %s" file);
   (* begin work *)
   try
@@ -105,6 +85,7 @@ let main style_renderer verbosity tool file scriptfile keep_files no_analysis
       Transfo.(get_exn elo_to_smv_t "to_smv1" |> run)
         (elo, temporal_symmetry, symmetry_offset, single_formula)
     in
+    (*Logs.app (fun m -> m "DUMPING %s" (Yojson.Safe.to_string Elo_to_smv1.SMV_atom.dump));*)
     let conversion_time = Mtime.span before_conversion @@ Mtime_clock.now () in
     (match verbosity with
     | Some _ ->
@@ -167,3 +148,42 @@ let main style_renderer verbosity tool file scriptfile keep_files no_analysis
           m "Aborting (%a)." Mtime.Span.pp (Mtime_clock.elapsed ()));
       exit 1
   | e -> raise e
+
+let main_backward bmc infofile outfile =
+    let res = Elo_to_smv1.backtrace ~bmc:bmc (infofile,outfile) in
+    IO.with_out
+      (Filename.chop_extension outfile ^ ".xml")
+      (fun chan -> Format.with_out_chan chan (Outcome.pp ~format:`XML) res)
+
+let main style_renderer verbosity tool file scriptfile keep_files no_analysis
+    print_generated outcome_format long_names bmc temporal_symmetry
+    symmetry_offset single_formula back_trace =
+    
+    let long_names =
+      (* Debug ==> long names *)
+      match verbosity with Some Logs.Debug -> true | None | Some _ -> long_names
+    in
+    Printexc.record_backtrace true;
+    Fmt_tty.setup_std_outputs ?style_renderer ();
+    Logs.set_reporter (Logs_fmt.reporter ~pp_header ());
+    Logs.set_level ~all:true verbosity;
+    let version =
+      match Build_info.V1.version () with
+      | None -> "(development version)"
+      | Some v -> Build_info.V1.Version.to_string v
+    in
+    Logs.app (fun m ->
+        m "%a"
+          Fmtc.(styled `Bold string)
+          ("electrod (C) 2016-2024 ONERA " ^ version));
+    ensure_session_leader ();
+    Msg.debug (fun m -> m "CWD = %s" (Sys.getcwd ()));
+    Msg.debug (fun m -> m "PATH = %s" (Sys.getenv "PATH"));
+    
+    match back_trace with
+        | Some infofile -> 
+            Logs.app (fun m -> m "Entering backward mode");
+            main_backward bmc infofile file
+        | None -> 
+            (*Logs.app (fun m -> m "Entering forward mode");*)
+            main_forward style_renderer verbosity tool file scriptfile keep_files no_analysis print_generated outcome_format long_names bmc temporal_symmetry symmetry_offset single_formula

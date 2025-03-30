@@ -564,3 +564,10 @@ let pp_fml_stats __out inf =
   pr "expressions" @@ HC.stats exp_table;
   pr "integer expressions" @@ HC.stats iexp_table;
   HC.iter (fun data -> Fmt.pr "%a@\n" (pp_fml 0) (Fml data)) fml_table
+
+    
+
+
+
+
+

@@ -577,6 +577,170 @@ module Make_SMV_file_format (Ltl : Solver.LTL) :
         IO.with_out tgt (fun out -> IO.write_line out (first_line ^ default)));
     tgt
 
+  module ListAssoc = struct
+    
+    let to_yojson key_to_yojson value_to_yojson assoc_list =
+      `Assoc (
+        List.map (fun (key, value) -> match key_to_yojson key with
+            | `String s -> (s, value_to_yojson value)
+            | _ -> failwith "key must be string"
+        ) assoc_list
+      )
+    let of_yojson key_of_yojson value_of_yojson json =
+      match json with
+      | `Assoc lst ->
+          let rec convert acc = function
+            | [] -> Ok (List.rev acc)
+            | (key, value_json) :: xs -> (
+                match key_of_yojson (`String key), value_of_yojson value_json with
+                | Ok key, Ok value -> convert ((key, value) :: acc) xs
+                | Error e, _ | _, Error e -> Error ("ListAssoc.of_yojson failed: " ^ e)
+            )
+          in
+          convert [] lst
+      | _ -> Error "Expected a JSON object"
+  end
+
+  type elo_info_t = {
+    nbvars : int;
+    domain : Domain.t;
+    atom_renaming : (Atom.t, Atom.t) List.Assoc.t;
+    name_renaming : (Name.t, Name.t) List.Assoc.t;
+    smv_atoms : Yojson.Safe.t;
+  } 
+  
+  let elo_info_to_yojson (elo_info : elo_info_t) : Yojson.Safe.t =
+    `Assoc [
+      ("nbvars", `Int elo_info.nbvars);
+      ("domain", Domain.to_yojson elo_info.domain);
+      ("atom_renaming", ListAssoc.to_yojson Atom.to_yojson Atom.to_yojson elo_info.atom_renaming);
+      ("name_renaming", ListAssoc.to_yojson Name.to_yojson Name.to_yojson elo_info.name_renaming);
+      ("smv_atoms",elo_info.smv_atoms)
+    ]
+  let elo_info_of_yojson (json : Yojson.Safe.t) : (elo_info_t, string) result =
+    match json with
+    | `Assoc fields -> 
+        let open Result in
+        let find_field name =
+          match List.assoc_opt ~eq:String.equal name fields with
+          | Some v -> Ok v
+          | None -> Error ("Missing field: " ^ name)
+        in
+        find_field "nbvars" >>= (function
+          | `Int nbvars -> Ok nbvars
+          | _ -> Error "nbvars must be an int")
+        >>= fun nbvars ->
+        find_field "domain" >>= Domain.of_yojson
+        >>= fun domain ->
+        find_field "atom_renaming" >>= ListAssoc.of_yojson Atom.of_yojson Atom.of_yojson
+        >>= fun atom_renaming ->
+        find_field "name_renaming" >>= ListAssoc.of_yojson Name.of_yojson Name.of_yojson
+        >>= fun name_renaming ->
+        find_field "smv_atoms"
+        >>= fun smv_atoms ->
+        Ok { nbvars; domain; atom_renaming; name_renaming; smv_atoms }
+    | _ -> Error "Expected a JSON object"
+  
+  let make_elo_info (nbvars : int) domain atom_renaming name_renaming =
+      let smv_atoms = Ltl.Atomic.dump () in
+      { nbvars = nbvars; domain = domain; atom_renaming = atom_renaming; name_renaming = name_renaming; smv_atoms = smv_atoms }
+
+  let parseNuSmvOutput conversion_time analysis_time (cmd : string) elo_info (spec : string Gen.gen) = 
+      let musts = Domain.musts ~with_univ_and_ident:false elo_info.domain in
+      (* nuXmv says there is a counterexample so we parse it on the standard
+         output *)
+      (* first create a trace parser (it is parameterized by [base] below
+         which tells the parser the "must" associated to every relation in the
+         domain, even the ones not present in the SMV file because they have
+         been simplified away in the translation. This goes this way because
+         the trace to return should reference all relations, not just the ones
+         grounded in the SMV file.). NOTE: the parser expects a nuXmv trace
+         using the "trace plugin" number 1 (classical output (i.e. no XML, no
+         table) with information on all variables, not just the ones that have
+         changed w.r.t. the previous state.). *)
+      let module P = Smv_trace_parser.Make (struct
+        let base = musts
+      end) in
+      let trace =
+        spec
+        (* With this trace output, nuXmv shows a few uninteresting lines first,
+           that we have to gloss over *)
+        |> Gen.drop_while (fun line -> not @@ String.prefix ~pre:"Trace" line)
+        |> Gen.drop_while (String.prefix ~pre:"Trace")
+        |> String.unlines_gen
+        (* |> Fun.tap print_endline *)
+        |> fun trace_str ->
+        let lexbuf = Lexing.from_string trace_str in
+        P.trace (Smv_trace_scanner.main Ltl.Atomic.split_string) lexbuf
+      in
+      if not @@ Outcome.loop_is_present trace then
+        Msg.Fatal.solver_bug (fun args ->
+            args cmd "trace is missing a loop state.")
+      else
+        let atom_back_renaming =
+          List.map (fun (x, y) -> (y, x)) elo_info.atom_renaming
+        in
+        let name_back_renaming =
+          List.map (fun (x, y) -> (y, x)) elo_info.name_renaming
+        in
+        Outcome.trace
+          (atom_back_renaming, name_back_renaming)
+          elo_info.nbvars conversion_time analysis_time trace
+
+  let write_elo_info_to_file file elo_info = 
+      let fileinfo = (Filename.chop_extension file ^ ".info") in
+      Logs.app (fun m -> m "Dumping electrod state to file %s" fileinfo);
+      let json = elo_info_to_yojson elo_info in
+      Yojson.Safe.to_file fileinfo json
+
+  let write_elo_to_file file nbvars elo = 
+      let elo_info = make_elo_info nbvars elo.Elo.domain elo.atom_renaming elo.name_renaming in 
+      write_elo_info_to_file file elo_info
+
+  let read_elo_info_from_file file_path =
+    try
+      let json = Yojson.Safe.from_file file_path in
+      match elo_info_of_yojson json with
+      | Ok elo_info -> Ok elo_info
+      | Error msg -> Error ("Failed to parse elo_info: " ^ msg)
+    with
+    | Yojson.Json_error msg -> Error ("JSON Error: " ^ msg)
+    | Sys_error msg -> Error ("File Error: " ^ msg)
+
+  let validity_check bmc line =
+    match bmc with
+    | None -> String.mem ~sub:"is true" line
+    | Some length ->
+        let valid_bmc_string =
+          "-- no counterexample found with bound " ^ string_of_int length
+        in
+        String.mem ~sub:valid_bmc_string line
+        
+  let gen_spec bmc okout =
+    let spec =
+      String.lines_gen okout
+      |> Gen.drop_while (fun line ->
+             (not @@ String.mem ~sub:"is false" line)
+             && (not @@ validity_check bmc line))
+    in spec
+    
+  let backtrace ~bmc (infofile,outfile) : Outcome.t = 
+      let before = Mtime_clock.now () in
+      Logs.app (fun m -> m "Reading electrod info file @%s@" infofile);
+      match read_elo_info_from_file infofile with
+          | Ok elo_info -> 
+              Logs.app (fun m -> m "Successfully read electrod info file @%s@" infofile);
+              (*write_elo_info_to_file "test.info" elo_info;*)
+              let time = Mtime.span before @@ Mtime_clock.now () in
+              let ic = open_in outfile in
+              let content = really_input_string ic (in_channel_length ic) in
+              close_in ic;
+              Ltl.Atomic.restore elo_info.domain elo_info.smv_atoms;
+              let spec = gen_spec bmc content in
+              Logs.app (fun m -> m "Processing tool output @%s@" outfile);
+              parseNuSmvOutput time time "nuXmv" elo_info spec
+          | Error msg -> failwith msg
+
   let analyze ~conversion_time ~cmd ~script ~keep_files ~no_analysis ~elo ~file
       ~bmc ~pp_generated model : Outcome.t =
     let keep_or_remove_files scr smv =
@@ -611,6 +775,7 @@ module Make_SMV_file_format (Ltl : Solver.LTL) :
           (Mtime.span before_generation after_generation));
     if no_analysis then (
       keep_or_remove_files scr smv;
+      write_elo_to_file file nbvars elo;
       Outcome.no_trace nbvars conversion_time Mtime.Span.zero)
     else
       (* Inspired by nunchaku-inria/logitest/src/Misc.ml (BSD licence). *)
@@ -650,21 +815,7 @@ module Make_SMV_file_format (Ltl : Solver.LTL) :
         (* running nuXmv goes well: parse its output *)
         Msg.info (fun m -> m "Analysis done in %a" Mtime.Span.pp analysis_time);
       (* check for the "UNSAT" problems when relying on UMC or BMC  *)
-      let validity_check line =
-        match bmc with
-        | None -> String.mem ~sub:"is true" line
-        | Some length ->
-            let valid_bmc_string =
-              "-- no counterexample found with bound " ^ string_of_int length
-            in
-            String.mem ~sub:valid_bmc_string line
-      in
-      let spec =
-        String.lines_gen okout
-        |> Gen.drop_while (fun line ->
-               (not @@ String.mem ~sub:"is false" line)
-               && (not @@ validity_check line))
-      in
+      let spec = gen_spec bmc okout in
       keep_or_remove_files scr smv;
       let spec_s =
         match Gen.get spec with
@@ -674,46 +825,10 @@ module Make_SMV_file_format (Ltl : Solver.LTL) :
               ^ Fmt.to_to_string (Gen.pp String.pp) spec)
         | Some s -> s
       in
-      if validity_check spec_s then
+      if validity_check bmc spec_s then
         Outcome.no_trace nbvars conversion_time analysis_time
       else
-        (* nuXmv says there is a counterexample so we parse it on the standard
-           output *)
-        (* first create a trace parser (it is parameterized by [base] below
-           which tells the parser the "must" associated to every relation in the
-           domain, even the ones not present in the SMV file because they have
-           been simplified away in the translation. This goes this way because
-           the trace to return should reference all relations, not just the ones
-           grounded in the SMV file.). NOTE: the parser expects a nuXmv trace
-           using the "trace plugin" number 1 (classical output (i.e. no XML, no
-           table) with information on all variables, not just the ones that have
-           changed w.r.t. the previous state.). *)
-        let module P = Smv_trace_parser.Make (struct
-          let base = Domain.musts ~with_univ_and_ident:false elo.Elo.domain
-        end) in
-        let trace =
-          spec
-          (* With this trace output, nuXmv shows a few uninteresting lines first,
-             that we have to gloss over *)
-          |> Gen.drop_while (fun line -> not @@ String.prefix ~pre:"Trace" line)
-          |> Gen.drop_while (String.prefix ~pre:"Trace")
-          |> String.unlines_gen
-          (* |> Fun.tap print_endline *)
-          |> fun trace_str ->
-          let lexbuf = Lexing.from_string trace_str in
-          P.trace (Smv_trace_scanner.main Ltl.Atomic.split_string) lexbuf
-        in
-        if not @@ Outcome.loop_is_present trace then
-          Msg.Fatal.solver_bug (fun args ->
-              args cmd "trace is missing a loop state.")
-        else
-          let atom_back_renaming =
-            List.map (fun (x, y) -> (y, x)) elo.atom_renaming
-          in
-          let name_back_renaming =
-            List.map (fun (x, y) -> (y, x)) elo.name_renaming
-          in
-          Outcome.trace
-            (atom_back_renaming, name_back_renaming)
-            nbvars conversion_time analysis_time trace
+        (*let musts = Domain.musts ~with_univ_and_ident:false elo.Elo.domain in*)
+        let elo_info = make_elo_info nbvars elo.Elo.domain elo.atom_renaming elo.name_renaming in 
+        parseNuSmvOutput conversion_time analysis_time cmd elo_info spec
 end

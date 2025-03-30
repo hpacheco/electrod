@@ -42,6 +42,7 @@
   (stdlib-shims ( <= 0.3.0))
   (utop ( <= 2.10.0))
   (visitors ( <= 20210608))
+  yojson ppx_deriving_yojson
  )
  (synopsis "Formal analysis for the Electrod formal pivot language")
  (description

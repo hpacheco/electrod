@@ -19,6 +19,10 @@ type t
 val name : string -> t
 (** {1 Constructors} *)
 
+val to_string : t -> string
+val to_yojson : t -> Yojson.Safe.t
+val of_yojson : Yojson.Safe.t -> (t, string) result
+
 val dummy : unit -> t
 (** Returns a dummy name. This function is only here for some computations that
     raise new relations and hence need a temporary, dummy name. *)

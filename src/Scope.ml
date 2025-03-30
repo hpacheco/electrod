@@ -19,8 +19,10 @@ type relation =
   | Plain_relation of TS.t * TS.t
   | Partial_function of int * TS.t
   | Total_function of int * TS.t
+  [@@deriving yojson]
 
 type t = Exact of TS.t | Inexact of relation
+  [@@deriving yojson]
 
 let equal sc1 sc2 =
   match (sc1, sc2) with

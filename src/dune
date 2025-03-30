@@ -15,10 +15,10 @@
   printbox-text
   iter
   stdcompat
-  stdlib-shims)
+  stdlib-shims yojson)
  (inline_tests)
  (preprocess
-  (pps ppx_expect ppx_inline_test visitors.ppx)))
+  (pps ppx_expect ppx_inline_test visitors.ppx ppx_deriving_yojson )))
 
 ; Generate Scripts.ml file
 

@@ -23,3 +23,7 @@ val hash : t -> int
 val equal : t -> t -> bool
 
 include Intf.Print.S with type t := t
+
+val to_string : t -> string
+val to_yojson : t -> Yojson.Safe.t
+val of_yojson : Yojson.Safe.t -> (t, string) result
