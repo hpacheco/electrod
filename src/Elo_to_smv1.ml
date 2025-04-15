@@ -22,10 +22,7 @@ module SMV_atom : Solver.ATOMIC_PROPOSITION = struct
     sym : Symbol.t;
     (* hashconsed strings *)
     const : bool;
-    partial : bool;
-    (* is 'lone'? *)
-    dom_arity : int option;
-        (* arity of the domain (>=0) if functional, else None *)
+    enum : bool;
   }
 
   let compare { sym = sym1; _ } { sym = sym2; _ } = Symbol.compare sym1 sym2
@@ -36,9 +33,8 @@ module SMV_atom : Solver.ATOMIC_PROPOSITION = struct
   let pp fmt at = Symbol.pp fmt at.sym
   let equal { sym = sym1; _ } { sym = sym2; _ } = Symbol.equal sym1 sym2
   let hash at = Symbol.hash at.sym
-  let domain_arity t = t.dom_arity
   let is_const t = t.const
-  let is_partial t = t.partial
+  let is_enum t = t.enum
 
   (* table tracking which pair (name, tuple) a string comes from. Uses
      hahsconsing to make this more efficient *)
@@ -60,16 +56,8 @@ module SMV_atom : Solver.ATOMIC_PROPOSITION = struct
   let make (domain : Domain.t) : Name.t -> Tuple.t -> t =
     let name_tuple (name, tuple) =
       let rel = Domain.get_exn name domain in
-      let dom_arity =
-        let open Scope in
-        match Relation.scope rel with
-        | Exact _ -> assert false
-        | Inexact (Plain_relation _) -> None
-        | Inexact (Partial_function (ar, _)) -> Some ar
-        | Inexact (Total_function (ar, _)) -> Some ar
-      in
       let const = Relation.is_const rel in
-      let partial = rel |> Relation.scope |> Scope.is_partial in
+      let enum = Relation.is_enum rel in
       let ats = Tuple.to_list tuple in
       let name_str =
         let s = Fmtc.to_to_string Name.pp name in
@@ -87,7 +75,7 @@ module SMV_atom : Solver.ATOMIC_PROPOSITION = struct
       (* keep track of creations to allow to get original pairs back *)
       (* Note: this is an effect but it's fine with the cache hereunder as we want the same symbol to be used for the same name and tuple. *)
       HT.add names_and_tuples sym (name, tuple);
-      { sym; dom_arity; const; partial }
+      { sym; const; enum }
     in
     fun name tuple -> CCCache.with_cache cache name_tuple (name, tuple)
 

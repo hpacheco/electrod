@@ -17,6 +17,8 @@
 type t
 (** Type of atoms. *)
 
+module Set : CCSet.S with type elt = t
+
 val atom : ?loc:Location.t -> string -> t
 (** [atom ~loc:loc s] creates an atom with name [s] and optional location [loc]. *)
 

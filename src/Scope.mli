@@ -16,24 +16,18 @@ open Containers
 
 (** Relation scopes. *)
 
-type relation = private
-  | Plain_relation of Tuple_set.t * Tuple_set.t  (** inv: inf in sup *)
-  | Partial_function of int * Tuple_set.t
-      (** [int] is the domain arity (inv: >= 0); [inf] = empty *)
-  | Total_function of int * Tuple_set.t
-      (** [int] is the domain arity (inv: >= 0); [inf] = empty *)
-
 type t = private
   | Exact of Tuple_set.t  (** means: lower bound = upper bound *)
-  | Inexact of relation
+  | Inexact of (Tuple_set.t * Tuple_set.t) * ((Valuations.t list) option)
+
+val valuations : t -> ((Valuations.t list) option)
+
+val is_enum : t -> bool
 
 (** {1 Constructors} *)
 
 val exact : Tuple_set.t -> t
-val plain_relation : Tuple_set.t -> Tuple_set.t -> relation
-val partial_function : int -> Tuple_set.t -> relation
-val total_function : int -> Tuple_set.t -> relation
-val inexact : relation -> t
+val inexact : (Tuple_set.t * Tuple_set.t) * ((Valuations.t list) option) -> t
 val equal : t -> t -> bool
 
 val included_in : Tuple_set.t -> t -> bool
@@ -51,7 +45,6 @@ val must : t -> Tuple_set.t
     bounds of the scope. *)
 
 val may : t -> Tuple_set.t
-val is_partial : t -> bool
 
 val inferred_arity : t -> int
 (** 0 if the arity cannot be inferred (= is unknown), [n > 0] otherwise. *)

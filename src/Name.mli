@@ -53,5 +53,7 @@ val compare : t -> t -> int
 val hash : t -> int
 val style : Fmt.style
 
+module Set : CCSet.S with type elt = t
+
 include Intf.Print.S with type t := t
 module Map : CCMap.S with type key = t

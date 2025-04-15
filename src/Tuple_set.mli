@@ -97,9 +97,22 @@ val filter : (Tuple.t -> bool) -> t -> t
 val map : (Tuple.t -> Tuple.t) -> t -> t
 val rename : (Atom.t, Atom.t) List.Assoc.t -> t -> t
 val to_iter : t -> Tuple.t CCSet.iter
+val of_iter : Tuple.t CCSet.iter -> t
 val to_list : t -> Tuple.t list
 
 include Intf.Print.S with type t := t
 
 val to_yojson : t -> Yojson.Safe.t
 val of_yojson : Yojson.Safe.t -> (t, string) result
+
+val fold : (Tuple.t -> 'a -> 'a) -> t -> 'a -> 'a
+val iter : (Tuple.t -> unit) -> t -> unit
+
+val remove : Tuple.t -> t -> t
+val cardinal : t -> int
+
+val mapM : (Tuple.t -> Tuple.t Iter.t) -> t -> t Iter.t
+val mapMaybeM : (Tuple.t -> (Tuple.t option) Iter.t) -> t -> t Iter.t
+val mapCatM : (Tuple.t -> t Iter.t) -> t -> t Iter.t
+
+val elements : t -> Tuple.t list

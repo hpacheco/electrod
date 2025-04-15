@@ -43,10 +43,8 @@ module type ATOMIC_PROPOSITION = sig
   val equal : t -> t -> bool
   val hash : t -> int
 
-  (* None if non-enumerable; otw Some ar with ar >= 0  *)
-  val domain_arity : t -> int option
   val is_const : t -> bool
-  val is_partial : t -> bool
+  val is_enum : t -> bool
   val split_string : string -> (Name.t * Tuple.t) option
   val split : t -> (Name.t * Tuple.t) option
   val pp : Format.formatter -> t -> unit

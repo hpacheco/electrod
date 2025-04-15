@@ -35,7 +35,7 @@ and raw_declaration = private
   | DConst of Raw_ident.t * int option * raw_scope
   | DVar of Raw_ident.t * int option * raw_scope * raw_scope option
 
-and raw_multiplicity = [ `Lone | `One ] option
+and raw_multiplicity = [ `Lone | `One | `Some ] option
 
 and raw_scope = private
   | SExact of raw_bound
@@ -44,7 +44,7 @@ and raw_scope = private
 and raw_bound = private
   | BUniv
   | BRef of Raw_ident.t  (** reference to a previously-defined {i set} *)
-  | BProd of raw_bound * raw_multiplicity * raw_bound
+  | BProd of raw_bound * raw_multiplicity * raw_multiplicity * raw_bound
       (** None/Some (lone/one) *)
   | BUnion of raw_bound * raw_bound
   | BElts of raw_element list
@@ -82,7 +82,7 @@ val etuple : Raw_ident.t list -> raw_element
 val eintvl : raw_interval -> raw_element
 val buniv : raw_bound
 val bref : Raw_ident.t -> raw_bound
-val bprod : raw_bound -> raw_multiplicity -> raw_bound -> raw_bound
+val bprod : raw_bound -> raw_multiplicity -> raw_multiplicity -> raw_bound -> raw_bound
 val bunion : raw_bound -> raw_bound -> raw_bound
 val belts : raw_element list -> raw_bound
 val sexact : raw_bound -> raw_scope

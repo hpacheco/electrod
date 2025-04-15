@@ -127,6 +127,10 @@ rule main infile = parse
     { NO }
 | "lone"
     { LONE }
+| "some"
+    { SOME }
+| "set"
+    { SET }
 | "let"
     { LET }
 | "disj"

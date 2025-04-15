@@ -41,6 +41,7 @@ val is_set : t -> bool
 val is_nary : t -> bool
 val is_const : t -> bool
 val is_var : t -> bool
+val is_enum : t -> bool
 
 val scope : t -> Scope.t
 (** Returns the scope of a relation (for variable relations: not [fby]!)  *)

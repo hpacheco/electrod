@@ -15,6 +15,13 @@
 type t = { sym : Symbol.t; loc : Location.t option } [@@warning "-69"]
 (* removes unused field warning *)
 
+module Set = CCSet.Make (struct
+  type nonrec t = t
+
+  let compare = compare
+  
+end)
+
 let compare a1 a2 = Symbol.compare a1.sym a2.sym
 let equal a1 a2 = Symbol.equal a1.sym a2.sym
 

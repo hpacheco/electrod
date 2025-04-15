@@ -33,7 +33,7 @@ and raw_declaration =
   | DConst of Raw_ident.t * int option * raw_scope
   | DVar of Raw_ident.t * int option * raw_scope * raw_scope option
 
-and raw_multiplicity = [ `Lone | `One ] option
+and raw_multiplicity = [ `Lone | `One | `Some ] option
 
 and raw_scope =
   | SExact of raw_bound
@@ -42,7 +42,7 @@ and raw_scope =
 and raw_bound =
   | BUniv
   | BRef of Raw_ident.t  (** reference to a previously-defined {i set} *)
-  | BProd of raw_bound * raw_multiplicity * raw_bound
+  | BProd of raw_bound * raw_multiplicity * raw_multiplicity * raw_bound
   | BUnion of raw_bound * raw_bound
   | BElts of raw_element list
 
@@ -74,7 +74,7 @@ let etuple ats =
 let eintvl intvl = EIntvl intvl
 let buniv = BUniv
 let bref name = BRef name
-let bprod mult b1 b2 = BProd (mult, b1, b2)
+let bprod b1 mult1 mult2 b2 = BProd (b1,mult1,mult2,b2)
 let bunion b1 b2 = BUnion (b1, b2)
 let belts elts = BElts elts
 let sexact b = SExact b

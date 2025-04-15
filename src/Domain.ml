@@ -39,7 +39,7 @@ let univ_atoms domain =
   let open Scope in
   match get_exn Name.univ domain with
   | Const { scope; _ } -> (
-      match scope with Exact b -> b | Inexact _ -> assert false)
+      match scope with Exact (b) -> b | Inexact _ -> assert false)
   | Var _ -> assert false
   | exception Not_found -> assert false
 
@@ -73,13 +73,16 @@ let arities domain =
   let arities = Map.map Relation.arity domain.decls in
   Map.to_list arities
 
+let update_scope_with_instance scope instance = 
+    Scope.exact (instance)
+
 let update_domain_with_instance domain instance =
   let module R = Relation in
   let module I = Instance in
   let bw = domain.bitwidth in
   let relation_of_instance_item inst_item rel =
     assert (R.is_const rel);
-    R.const (R.name rel) (R.arity rel) (Scope.exact inst_item)
+    R.const (R.name rel) (R.arity rel) (update_scope_with_instance (R.scope rel) inst_item)
   in
   let keep_instance __name = function
     | `Both (dom_entry, inst_entry) ->
@@ -144,7 +147,7 @@ let check_int_set univ_ts ints =
 
 let compute_bitwidth univ_ts domain =
   match get Name.integers domain with
-  | Some Relation.(Const { arity = 1; scope = Scope.Exact ints; _ }) ->
+  | Some Relation.(Const { arity = 1; scope = Scope.Exact (ints); _ }) ->
       { domain with bitwidth = check_int_set univ_ts ints }
       |> Fun.tap (fun { bitwidth; _ } ->
              Msg.debug (fun m ->
@@ -155,12 +158,12 @@ let compute_bitwidth univ_ts domain =
 
 let ints domain =
   match get Name.integers domain with
-  | Some Relation.(Const { arity = 1; scope = Scope.Exact ints; _ }) -> ints
+  | Some Relation.(Const { arity = 1; scope = Scope.Exact (ints); _ }) -> ints
   | _ -> assert false
 
 let get_shift domain name =
   match get name domain with
-  | Some Relation.(Const { arity = 3; scope = Scope.Exact triples; _ }) ->
+  | Some Relation.(Const { arity = 3; scope = Scope.Exact (triples); _ }) ->
       Some triples
   | _ -> None
 

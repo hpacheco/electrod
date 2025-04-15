@@ -214,3 +214,8 @@ let of_yojson (json : Yojson.Safe.t) : (t, string) result =
       convert [] lst
   | _ -> Error "Expected a JSON tuple"
 
+module Map = CCMap.Make (struct
+  type nonrec t = t
+
+  let compare = compare
+end)

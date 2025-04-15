@@ -200,3 +200,37 @@ let of_yojson (json : Yojson.Safe.t) : (t, string) result =
       in
       convert [] lst
   | _ -> Error "Expected a JSON list"
+
+let fold = TS.fold
+
+let iter = TS.iter
+
+let remove = TS.remove
+
+let cardinal = TS.cardinal
+
+let rec mapM (go : Tuple.t -> Tuple.t Iter.t) (s : t) : t Iter.t =
+    match TS.elements s with
+    | [] -> Iter.return TS.empty
+    | x :: xs ->
+        let rest = mapM go (TS.of_list xs) in
+        Iter.flat_map (fun v -> Iter.map (fun tail -> TS.add v tail) rest) (go x)
+
+let rec mapMaybeM (go : Tuple.t -> (Tuple.t option) Iter.t) (s : t) : t Iter.t =
+    let addMaybe mbv r = match mbv with
+        | None -> r
+        | Some v -> TS.add v r in
+    match TS.elements s with
+    | [] -> Iter.return TS.empty
+    | x :: xs ->
+        let rest = mapMaybeM go (TS.of_list xs) in
+        Iter.flat_map (fun mbv -> Iter.map (fun tail -> addMaybe mbv tail) rest) (go x)
+
+let rec mapCatM (go : Tuple.t -> t Iter.t) (s : t) : t Iter.t =
+    match TS.elements s with
+    | [] -> Iter.return TS.empty
+    | x :: xs ->
+        let rest = mapCatM go (TS.of_list xs) in
+        Iter.flat_map (fun vs -> Iter.map (fun tail -> TS.union vs tail) rest) (go x)
+
+let elements = TS.elements

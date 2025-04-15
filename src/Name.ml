@@ -101,6 +101,13 @@ end)
 
 include P
 
+module Set = CCSet.Make (struct
+  type nonrec t = t
+
+  let compare = compare
+  
+end)
+
 module Map = CCMap.Make (struct
   type nonrec t = t
 

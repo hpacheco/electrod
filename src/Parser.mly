@@ -37,7 +37,7 @@ let exp_no_arity = G.exp (Some 0)
 %token UNIV NONE VAR COLON SEMI EOF EQ IN NEQ AND OR HISTORICALLY
 %token IMPLIES IFF UNTIL RELEASES SINCE AFTER ONCE BEFORE LET
 %token LPAREN RPAREN LBRACKET RBRACKET DOTDOT PLUS ARROW
-%token ALL SOME DISJ ONE LONE NO COMMA LBRACE RBRACE BAR
+%token ALL SOME DISJ ONE LONE SET NO COMMA LBRACE RBRACE BAR
 %token GT GTE LT LTE TRUE FALSE EVENTUALLY ALWAYS NOT
 %token TILDE HAT STAR IDEN ELSE CONST INVARIANT TRIGGERED
 %token INTER OVERRIDE LPROJ RPROJ MINUS DOT PRIME
@@ -69,7 +69,7 @@ let exp_no_arity = G.exp (Some 0)
 %nonassoc AFTER ALWAYS EVENTUALLY BEFORE HISTORICALLY ONCE
 %nonassoc LT LTE GT GTE EQ NEQ IN NOT_IN
 %nonassoc NOT
-//%nonassoc NO SOME LONE ONE      (* for formulas as 'some E' (= E != none) *)
+%nonassoc SOME SET LONE ONE      (* for formulas as 'some E' (= E != none) *)
 %right IIMPLIES IELSE
 %left MINUS PLUS
 %nonassoc HASH
@@ -136,8 +136,10 @@ next_scope: THEN sc = scope
 %inline scope:
 	b = bound
 	{ Raw.sexact b }
-	| b1 = bound mult = boundmult? b2 = bound
-	{ Raw.sinexact b1 mult b2 }
+	| b1 = bound b2 = bound
+	{ Raw.sinexact b1 None b2 }
+	| b1 = bound mult = boundmult b2 = bound
+	{ Raw.sinexact b1 (mult) b2 }
 
 bound:
 	UNIV
@@ -146,8 +148,14 @@ bound:
   { Raw.bref (Raw_ident.ident id $startpos(id) $endpos(id)) }
 	| b = parens(bound)
 	{ b }
-	| b1 = bound ARROW mult = boundmult? b2 = bound
-	{ Raw.bprod b1 mult b2 }
+    | b1 = bound ARROW b2 = bound
+      { Raw.bprod b1 None None b2 }
+    | b1 = bound mult1 = boundmult ARROW b2 = bound
+      { Raw.bprod b1 (mult1) None b2 }
+    | b1 = bound ARROW mult2 = boundmult b2 = bound
+      { Raw.bprod b1 None (mult2) b2 }
+    | b1 = bound mult1 = boundmult ARROW mult2 = boundmult b2 = bound
+      { Raw.bprod b1 (mult1) (mult2) b2 }
 	| b1 = bound PLUS b2 = bound
 	{ Raw.bunion b1 b2  }
   | elts = braces(element*)
@@ -155,9 +163,13 @@ bound:
 
 boundmult:
   LONE
-   { `Lone }
+   { Some `Lone }
    | ONE
-   { `One }
+   { Some `One }
+   | SOME
+   { Some `Some }
+   | SET
+   { None }
 
 element:
   i = interval  /* necessarily: at least two 1-tuples */

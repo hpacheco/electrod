@@ -333,8 +333,41 @@ module Make_SMV_file_format (Ltl : Solver.LTL) :
   let make ~elo ~init ~invariant ~trans ~property =
     { elo; init; invariant; trans; property }
 
-  let pp_plain_decl vartype out atomic =
+  let pp_plain_decl vartype out (atomic : Ltl.Atomic.t) =
     Fmtc.pf out "%s %a : boolean;" vartype Ltl.Atomic.pp atomic
+
+  let pp_enum_decl elo vartype out (name : Name.t) (tuples : Tuple_set.t) =
+      let rel = Domain.get_exn name elo.Elo.domain in
+      let scope = Relation.scope rel in
+      let valuations = Scope.valuations scope in
+      let name_str = Name.to_string name in
+      let tuple_to_string tuple =
+        Fmtc.(str "%a" @@ list ~sep:minus Atom.pp) (Tuple.to_list tuple) in
+      
+      (* print variable *)
+      Fmtc.(pf out "%s __%s : 0..%n;@\n" vartype name_str (Valuations_list.size valuations - 1));
+      
+      (* print atoms *)
+      Tuple_set.iter (fun tuple ->
+          let tuple_str = tuple_to_string tuple in
+          if Tuple_set.mem tuple (Scope.inf scope) then Fmtc.(pf out "DEFINE %s-%s := TRUE;@\n" name_str tuple_str)
+          else
+              let tuple_idxs = Valuations_list.indices_of tuple valuations in
+              Fmtc.(pf out "DEFINE %s-%s := __%s in {%a};@\n" name_str tuple_str name_str (Fmt.list ~sep:(Fmt.any ", ") Fmt.int) tuple_idxs ))
+          tuples
+
+  let pp_enum_decls elo vartype out (atoms : Ltl.Atomic.t Iter.iter) =
+      let nmap_update (k,v) m =
+          let existing = Name.Map.get k m |> Option.value ~default:Tuple_set.empty in
+          Name.Map.add k (Tuple_set.add v existing) m in
+      let split_atom at =
+          Option.get_exn_or __LOC__ @@ Ltl.Atomic.split at in
+      let gatoms =
+          Iter.fold (fun acc atom -> nmap_update (split_atom atom) acc) Name.Map.empty atoms in
+      Name.Map.iter (fun key value ->
+          Fmtc.hardline out ();
+          pp_enum_decl elo vartype out key value)
+          gatoms
 
   (* for an enumerated declaration, all the may corresponding to the name must
      be created, even if some cases were cancelled out when printing
@@ -342,13 +375,14 @@ module Make_SMV_file_format (Ltl : Solver.LTL) :
      would have been a formula too, one that would have spoken about all the
      part. Besides, for 'lone' relations a special value representing the
      absence must be added. *)
-  let pp_enum_decl elo vartype out atoms =
+  (*let pp_enum_decl elo vartype out (atoms : Ltl.Atomic.t Iter.iter) =
     let module S = Iter in
     let tuple_to_string tuple =
       Fmtc.(str "%a" @@ list ~sep:minus Atom.pp) (Tuple.to_list tuple)
     in
     let atom_name at = Option.get_exn_or __LOC__ @@ Ltl.Atomic.split at in
     let pp_one_decl atom =
+      Format.printf "pp_one_decl %a\n" Ltl.Atomic.pp atom;
       let name, _ = atom_name atom in
       let name_str = Name.to_string name in
       (* To avoid changin the generation of LTL formulas, we generate DEFINEs of
@@ -427,7 +461,7 @@ module Make_SMV_file_format (Ltl : Solver.LTL) :
            Name.compare (fst @@ atom_name at1) (fst @@ atom_name at2))
     |> S.iter (fun at ->
            Fmtc.hardline out ();
-           pp_one_decl at)
+           pp_one_decl at)*)
 
   let pp_count_variables ?(margin = 80) out
       { elo; init; invariant; trans; property } =
@@ -500,14 +534,14 @@ module Make_SMV_file_format (Ltl : Solver.LTL) :
       S.fold
         (fun (acc_rp, acc_re, acc_fp, acc_fe) at ->
           if Ltl.Atomic.is_const at then
-            (* rigid *)
-            if Option.is_none @@ Ltl.Atomic.domain_arity at then
+            (* rigid / const *)
+            if not @@ Ltl.Atomic.is_enum at then
               (* plain *)
               (S.cons at acc_rp, acc_re, acc_fp, acc_fe)
             else (* enumerable *)
               (acc_rp, S.cons at acc_re, acc_fp, acc_fe)
-          else if (* flexible *)
-                  Option.is_none @@ Ltl.Atomic.domain_arity at
+          else if (* flexible / var *)
+                  not @@ Ltl.Atomic.is_enum at
           then (* plain *)
             (acc_rp, acc_re, S.cons at acc_fp, acc_fe)
           else (* enumerable *)
@@ -517,15 +551,20 @@ module Make_SMV_file_format (Ltl : Solver.LTL) :
       |> fun (res_rp, res_re, res_fp, res_fe) ->
       (sort_atomics res_rp, res_re, sort_atomics res_fp, res_fe)
     in
+    (*S.iter (fun v -> Format.printf "r_plain %a\n" Ltl.Atomic.pp v) r_plain;
+    S.iter (fun v -> Format.printf "r_enum %a\n" Ltl.Atomic.pp v) r_enum;
+    S.iter (fun v -> Format.printf "f_plain %a\n" Ltl.Atomic.pp v) f_plain;
+    S.iter (fun v -> Format.printf "f_enum %a\n" Ltl.Atomic.pp v) f_enum;
+    S.iter (fun v -> Format.printf "auxiliary %a\n" Symbol.pp v) !auxiliaries;*)
     (* FROZENVAR / PLAIN *)
     S.iter (fun at -> pf out "%a@\n" (pp_plain_decl "FROZENVAR") at) r_plain;
     (* FROZENVAR / ENUM *)
-    pp_enum_decl elo "FROZENVAR" out r_enum;
+    pp_enum_decls elo "FROZENVAR" out r_enum;
     (* VAR / PLAIN *)
     if not (S.is_empty r_plain || S.is_empty f_plain) then hardline out ();
     S.iter (fun at -> pf out "%a@\n" (pp_plain_decl "VAR") at) f_plain;
     (* VAR / ENUM *)
-    pp_enum_decl elo "VAR" out f_enum;
+    pp_enum_decls elo "VAR" out f_enum;
     (* VAR / AUXILIARY *)
     Iter.iter (fun at -> pf out "VAR %a : boolean;@\n" Symbol.pp at)
     @@ Iter.sort_uniq ~cmp:Symbol.compare !auxiliaries;
@@ -646,7 +685,7 @@ module Make_SMV_file_format (Ltl : Solver.LTL) :
       { nbvars = nbvars; domain = domain; atom_renaming = atom_renaming; name_renaming = name_renaming; smv_atoms = smv_atoms }
 
   let parseNuSmvOutput conversion_time analysis_time (cmd : string) elo_info (spec : string Gen.gen) = 
-      let musts = Domain.musts ~with_univ_and_ident:false elo_info.domain in
+      (*let musts = Domain.musts ~with_univ_and_ident:false elo_info.domain in*)
       (* nuXmv says there is a counterexample so we parse it on the standard
          output *)
       (* first create a trace parser (it is parameterized by [base] below
@@ -659,7 +698,7 @@ module Make_SMV_file_format (Ltl : Solver.LTL) :
          table) with information on all variables, not just the ones that have
          changed w.r.t. the previous state.). *)
       let module P = Smv_trace_parser.Make (struct
-        let base = musts
+        let base = (*musts*) failwith "TODO not implemented"
       end) in
       let trace =
         spec

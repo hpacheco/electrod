@@ -64,7 +64,7 @@ let compute_univ infile raw_univ =
   in
   let dedup = check_duplicate_atoms infile atoms in
   let bound = List.map Tuple.tuple1 dedup |> TS.of_tuples in
-  Relation.(const Name.univ 1 @@ Scope.exact bound)
+  Relation.(const Name.univ 1 @@ Scope.exact (bound))
 
 (* 1 = arity *)
 
@@ -141,7 +141,7 @@ let check_tuples_arities_and_duplicates infile id = function
    otherwise.
 
    We also pass the [id] of the concerned relation (useful for error message). *)
-let compute_bound infile domain (which : [ `Inf | `Sup | `Exact ]) id raw_bound
+(*let compute_bound infile domain (which : [ `Inf | `Sup | `Exact ]) id raw_bound
     =
   let open Relation in
   let open Scope in
@@ -193,9 +193,73 @@ let compute_bound infile domain (which : [ `Inf | `Sup | `Exact ]) id raw_bound
               args infile id which TS.pp bnd);
         bnd
   in
-  walk raw_bound
+  walk raw_bound*)
 
-let compute_scope infile domain id = function
+let rec compute_simple_bound (infile : string option) (domain : Domain.t) (id : Raw_ident.t) (b : raw_bound) (which : [ `Inf | `Sup | `Exact ]) : Tuple_set.t =
+    match b with
+    | BUniv -> (Domain.univ_atoms domain)
+    | BElts elts -> 
+        let tuples = List.flat_map (compute_tuples infile domain id) elts in
+        let bnd = check_tuples_arities_and_duplicates infile id tuples in
+        if TS.size bnd <> List.length tuples then
+            Msg.Warn.duplicate_elements (fun args ->
+              args infile id which TS.pp bnd);
+        bnd
+    | BUnion (rb1, rb2) ->
+        let b1 = compute_simple_bound infile domain id rb1 which in
+        let b2 = compute_simple_bound infile domain id rb2 which in
+        if TS.inferred_arity b1 = TS.inferred_arity b2 then TS.union b1 b2
+        else Msg.Fatal.incompatible_arities @@ fun args -> args infile id
+    | BRef ref_id -> 
+        (match Domain.get (Name.of_raw_ident ref_id) domain with
+        | None -> Msg.Fatal.undeclared_id (fun args -> args infile ref_id)
+        | Some rel -> (
+            match rel with
+            | Const { scope = Exact b; _ } when TS.inferred_arity b = 1 -> b
+            | Const { scope = Inexact _ as sc; _ } ->
+                let sup = Scope.sup sc in
+                if TS.inferred_arity sup = 1 then
+                  match which with
+                  | `Inf -> Scope.inf sc
+                  | `Sup -> sup
+                  | `Exact ->
+                      Msg.Fatal.inexact_ref_used_in_exact_scope @@ fun args ->
+                      args infile id ref_id
+                else
+                  Msg.Fatal.should_denote_a_constant_set @@ fun args ->
+                  args infile ref_id
+            | Const { scope = Exact _; _ } | Var _ ->
+                Msg.Fatal.should_denote_a_constant_set @@ fun args ->
+                args infile ref_id))
+    | BProd (rb1,None,None,rb2) ->
+        let b1 = compute_simple_bound infile domain id rb1 which in
+        let b2 = compute_simple_bound infile domain id rb2 which in
+        TS.product b1 b2
+    | _ -> failwith "expected simple bound"
+    
+let compute_sup_bound (infile : string option) (domain : Domain.t) (id : Raw_ident.t) (b : raw_bound) : Tuple_set.t * Valuations_set.t =
+    let rec go b = match b with
+        | BProd (b1,m1,m2,b2) ->
+            let tvs1 = go b1 in
+            let tvs2 = go b2 in
+            Valuations_set.product_with_multiplicities tvs1 m1 m2 tvs2
+        | _ -> 
+            let ts = compute_simple_bound infile domain id b `Sup in
+            (ts,Valuations_set.empty)
+    in go b
+
+let compute_scope (infile : string option) (domain : Domain.t) (id : Raw_ident.t) (s : raw_scope) : Scope.t =
+    match s with
+    | SExact raw_b ->
+        Scope.exact @@ compute_simple_bound infile domain id raw_b `Exact
+    | SInexact (raw_inf, mult, raw_sup) ->
+        let inf_ts = compute_simple_bound infile domain id raw_inf `Inf in
+        let (sup_ts,sup_vs) = compute_sup_bound infile domain id raw_sup in
+        let sup_vs' = Valuations_set.truncate inf_ts sup_ts (Valuations_set.apply_multiplicity mult sup_ts sup_vs) in
+        let sup_vs'' = Valuations_set.sort sup_vs' in
+        Scope.inexact ((inf_ts,sup_ts),sup_vs'')
+
+(*let compute_scope (infile : string) (domain : Domain.t) (id : Raw_ident.t) : raw_scope.t -> Scope.t = function
   | SExact (BProd (_, Some _, _)) ->
       Msg.Fatal.multiplicity_only_in_a_sup (fun args -> args infile id)
   | SExact raw_b ->
@@ -243,7 +307,7 @@ let compute_scope infile domain id = function
       if TS.is_empty sup then
         Msg.Warn.empty_scope_declared (fun args -> args infile id);
       if TS.equal inf sup then Scope.exact sup
-      else Scope.(fun i s -> inexact @@ plain_relation i s) inf sup
+      else Scope.(fun i s -> inexact @@ plain_relation i s) inf sup*)
 
 let check_name infile id domain =
   let name = Name.of_raw_ident id in
