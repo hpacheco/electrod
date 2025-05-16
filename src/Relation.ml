@@ -40,7 +40,7 @@ let is_nary rel = arity rel > 1
 let is_const = function Const _ -> true | Var _ -> false
 let is_var = function Const _ -> false | Var _ -> true
 let scope = function Const { scope; _ } | Var { scope; _ } -> scope
-let is_enum r = Scope.is_enum (scope r)
+(*let is_enum r = Scope.is_enum (scope r)*)
 
 let pp ?(print_name = true) out rel =
   let open! Fmtc in

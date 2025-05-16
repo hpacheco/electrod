@@ -121,8 +121,6 @@ rule main infile = parse
     { SOME }
 | "one"
     { ONE }
-(*| "set"
-    { SET }*)
 | "no"
     { NO }
 | "lone"

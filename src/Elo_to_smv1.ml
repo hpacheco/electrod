@@ -22,7 +22,6 @@ module SMV_atom : Solver.ATOMIC_PROPOSITION = struct
     sym : Symbol.t;
     (* hashconsed strings *)
     const : bool;
-    enum : bool;
   }
 
   let compare { sym = sym1; _ } { sym = sym2; _ } = Symbol.compare sym1 sym2
@@ -34,7 +33,7 @@ module SMV_atom : Solver.ATOMIC_PROPOSITION = struct
   let equal { sym = sym1; _ } { sym = sym2; _ } = Symbol.equal sym1 sym2
   let hash at = Symbol.hash at.sym
   let is_const t = t.const
-  let is_enum t = t.enum
+(*  let is_enum t = t.enum*)
 
   (* table tracking which pair (name, tuple) a string comes from. Uses
      hahsconsing to make this more efficient *)
@@ -57,7 +56,7 @@ module SMV_atom : Solver.ATOMIC_PROPOSITION = struct
     let name_tuple (name, tuple) =
       let rel = Domain.get_exn name domain in
       let const = Relation.is_const rel in
-      let enum = Relation.is_enum rel in
+(*      let enum = Relation.is_enum rel in*)
       let ats = Tuple.to_list tuple in
       let name_str =
         let s = Fmtc.to_to_string Name.pp name in
@@ -75,7 +74,7 @@ module SMV_atom : Solver.ATOMIC_PROPOSITION = struct
       (* keep track of creations to allow to get original pairs back *)
       (* Note: this is an effect but it's fine with the cache hereunder as we want the same symbol to be used for the same name and tuple. *)
       HT.add names_and_tuples sym (name, tuple);
-      { sym; const; enum }
+      { sym; const }
     in
     fun name tuple -> CCCache.with_cache cache name_tuple (name, tuple)
 

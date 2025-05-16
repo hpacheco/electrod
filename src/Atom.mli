@@ -22,6 +22,8 @@ module Set : CCSet.S with type elt = t
 val atom : ?loc:Location.t -> string -> t
 (** [atom ~loc:loc s] creates an atom with name [s] and optional location [loc]. *)
 
+val to_string : t -> string
+
 val of_raw_ident : Raw_ident.t -> t
 (** creates an atom out of a raw_ident. *)
 

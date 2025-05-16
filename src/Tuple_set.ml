@@ -209,7 +209,7 @@ let remove = TS.remove
 
 let cardinal = TS.cardinal
 
-let rec mapM (go : Tuple.t -> Tuple.t Iter.t) (s : t) : t Iter.t =
+(*let rec mapM (go : Tuple.t -> Tuple.t Iter.t) (s : t) : t Iter.t =
     match TS.elements s with
     | [] -> Iter.return TS.empty
     | x :: xs ->
@@ -231,6 +231,6 @@ let rec mapCatM (go : Tuple.t -> t Iter.t) (s : t) : t Iter.t =
     | [] -> Iter.return TS.empty
     | x :: xs ->
         let rest = mapCatM go (TS.of_list xs) in
-        Iter.flat_map (fun vs -> Iter.map (fun tail -> TS.union vs tail) rest) (go x)
+        Iter.flat_map (fun vs -> Iter.map (fun tail -> TS.union vs tail) rest) (go x)*)
 
 let elements = TS.elements

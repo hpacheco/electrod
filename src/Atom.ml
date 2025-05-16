@@ -36,6 +36,8 @@ let atom ?loc s = { sym = Symbol.make s; loc }
 let of_raw_ident id = atom ~loc:(Raw_ident.location id) (Raw_ident.basename id)
 let hash atom = Symbol.hash atom.sym
 
+let to_string a = Symbol.to_string a.sym
+
 (** Generic interface implementations *)
 
 let pp out { sym; _ } = Symbol.pp out sym

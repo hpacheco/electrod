@@ -44,7 +44,7 @@ module type ATOMIC_PROPOSITION = sig
   val hash : t -> int
 
   val is_const : t -> bool
-  val is_enum : t -> bool
+(*  val is_enum : t -> bool*)
   val split_string : string -> (Name.t * Tuple.t) option
   val split : t -> (Name.t * Tuple.t) option
   val pp : Format.formatter -> t -> unit

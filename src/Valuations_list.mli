@@ -17,3 +17,12 @@ val to_yojson : t -> Yojson.Safe.t
 val of_yojson : Yojson.Safe.t -> (t, string) result
 
 val indices_of : Tuple.t -> t -> int list
+
+val of_set : Valuations_set.t -> t
+val to_set : t -> Valuations_set.t
+
+val truncate : Tuple_set.t -> Tuple_set.t -> t -> t
+
+val apply_multiplicity : Raw.raw_multiplicity -> Tuple_set.t -> t -> t
+
+val product : (Tuple_set.t * t) -> (Tuple_set.t * t) -> t

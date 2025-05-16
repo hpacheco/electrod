@@ -111,8 +111,8 @@ val iter : (Tuple.t -> unit) -> t -> unit
 val remove : Tuple.t -> t -> t
 val cardinal : t -> int
 
-val mapM : (Tuple.t -> Tuple.t Iter.t) -> t -> t Iter.t
+(*val mapM : (Tuple.t -> Tuple.t Iter.t) -> t -> t Iter.t
 val mapMaybeM : (Tuple.t -> (Tuple.t option) Iter.t) -> t -> t Iter.t
-val mapCatM : (Tuple.t -> t Iter.t) -> t -> t Iter.t
+val mapCatM : (Tuple.t -> t Iter.t) -> t -> t Iter.t*)
 
 val elements : t -> Tuple.t list

@@ -33,7 +33,7 @@ module type ATOMIC_PROPOSITION = sig
   val is_const : t -> bool
   (** Says whether the atomic proposition corresponds to a const or var relation *)
   
-  val is_enum : t -> bool
+(*  val is_enum : t -> bool*)
   (** Says whether the atomic proposition belongs to a relation that is enumerable or not *)
 
   val split_string : string -> (Name.t * Tuple.t) option

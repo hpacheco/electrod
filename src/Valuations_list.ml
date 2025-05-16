@@ -29,3 +29,22 @@ let indices_of (t:Tuple.t) (vs : t) =
     | Some xs ->
         CCList.mapi (fun i x -> (i, x)) xs
         |> CCList.filter_map (fun (i, v) -> if Valuations.mem t v then Some i else None)
+
+let of_set vs = match vs with
+    | None -> None
+    | Some xs -> Some (Valuations.Set.to_list xs)
+
+let to_set vs = match vs with
+    | None -> None
+    | Some xs -> Some (Valuations.Set.of_list xs)
+
+let apply_multiplicity (m : Raw.raw_multiplicity) (ts : Tuple_set.t) (vs : t) : t =
+    of_set (Valuations_set.apply_multiplicity m ts (to_set vs))
+    
+let truncate (inf : Tuple_set.t) (sup : Tuple_set.t) (vs : t) : t = 
+    of_set (Valuations_set.truncate inf sup (to_set vs))
+
+let product ((ts1,vs1) : Tuple_set.t * t) ((ts2,vs2) : Tuple_set.t * t) : t =
+    of_set (Valuations_set.product (ts1,to_set vs1) (ts2,to_set vs2))
+    
+    

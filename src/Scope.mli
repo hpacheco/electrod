@@ -16,18 +16,25 @@ open Containers
 
 (** Relation scopes. *)
 
-type t = private
-  | Exact of Tuple_set.t  (** means: lower bound = upper bound *)
-  | Inexact of (Tuple_set.t * Tuple_set.t) * ((Valuations.t list) option)
+type inf_t = Tuple_set.t
 
-val valuations : t -> ((Valuations.t list) option)
+type sup_t
+    = SupNode of Tuple_set.t * Valuations_list.t (* all possible valuations, when there are multiplicities *)
+    | SupArrow of sup_t * sup_t (* when there are no multiplicities involved *)
 
-val is_enum : t -> bool
+type t = Exact of Tuple_set.t | Inexact of inf_t * sup_t
+
+val sup_is_simple : sup_t -> bool
+val sup_arity : sup_t -> int
+
+(*val valuations : t -> ((Valuations.t list) option)
+
+val is_enum : t -> bool*)
 
 (** {1 Constructors} *)
 
 val exact : Tuple_set.t -> t
-val inexact : (Tuple_set.t * Tuple_set.t) * ((Valuations.t list) option) -> t
+val inexact : inf_t * sup_t -> t
 val equal : t -> t -> bool
 
 val included_in : Tuple_set.t -> t -> bool

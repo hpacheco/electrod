@@ -56,10 +56,6 @@ let of_yojson (json : Yojson.Safe.t) : (t, string) result =
       | Error e -> Error e
     )
 
-let sort vs = match vs with
-    | None -> None
-    | Some xs -> Some (VS.to_list xs)
-
 let remove_tuples (inf : Tuple_set.t) (vs : VS.t) : VS.t =
     VS.map (Valuations.removes inf) vs
 
@@ -69,7 +65,7 @@ let truncate (inf : Tuple_set.t) (sup : Tuple_set.t) (vs : t) : t =
     | None -> Some (Valuations.all_valuations (Tuple_set.diff sup inf))
     | Some xs -> Some (remove_tuples inf xs)
 
-let vs_product (b1 : VS.t) (b2 : VS.t) : VS.t =
+(*let vs_product (b1 : VS.t) (b2 : VS.t) : VS.t =
     let prod =
       Iter.product (VS.to_iter b1) (VS.to_iter b2)
       |> Iter.map (Fun.uncurry Valuations.product)
@@ -78,7 +74,12 @@ let vs_product (b1 : VS.t) (b2 : VS.t) : VS.t =
     (*Printf.printf "left: %s\n" (Yojson.Safe.to_string (vs_to_yojson b1));
     Printf.printf "right: %s\n" (Yojson.Safe.to_string (vs_to_yojson b2));
     Printf.printf "product: %s\n" (Yojson.Safe.to_string (vs_to_yojson prod));*)
-    prod
+    prod*)
+
+let vs_hproduct (b1 : VS.t) (b2 : VS.t) : VS.t =
+    Iter.product (VS.to_iter b1) (VS.to_iter b2)
+    |> Iter.map (fun (x1,x2) -> Valuations.union x1 x2)
+    |> VS.of_iter
     
 let rec make_multiplicity (m : Raw.raw_multiplicity) (ts : Tuple_set.t) : VS.t =
     match m with
@@ -101,20 +102,47 @@ let apply_multiplicity (m : Raw.raw_multiplicity) (ts : Tuple_set.t) (vs : t) : 
             | Some m -> Some (make_multiplicity (Some m) ts))
         | Some vs -> Some (apply_vs_multiplicity m vs)
 
+let tuple_product_right (t1 : Tuple.t) (vs2 : VS.t) : VS.t =
+    VS.map (fun v2 -> Valuations.tuple_product_right t1 v2) vs2
+    
+let tuple_product_left (vs1 : VS.t) (t2 : Tuple.t) : VS.t =
+    VS.map (fun v1 -> Valuations.tuple_product_left v1 t2) vs1
+
+let product_right (ts1 : Tuple_set.t) (vs2 : VS.t) : VS.t =
+    let rec go xs = match xs with
+        | [] -> VS.singleton Valuations.make_none
+        | x :: ys -> vs_hproduct (tuple_product_right x vs2) (go ys)
+    in go (Tuple_set.to_list ts1)
+
+let product_left (vs1 : VS.t) (ts2 : Tuple_set.t) : VS.t =
+    let rec go xs = match xs with
+        | [] ->  VS.singleton Valuations.make_none
+        | x :: ys -> vs_hproduct (tuple_product_left vs1 x) (go ys)
+    in go (Tuple_set.to_list ts2)
+
 let product ((ts1,vs1) : Tuple_set.t * t) ((ts2,vs2) : Tuple_set.t * t) : t =
-    let vs12 = match vs1,vs2 with
+    match vs1,vs2 with
+    | None, None -> None
+    | None, Some vs2' -> Some (product_right ts1 vs2')
+    | Some vs1', None -> Some (product_left vs1' ts2)
+    | Some vs1', Some vs2' ->
+        let r = product_right ts1 vs2' in
+        let l = product_left vs1' ts2 in
+        Some (VS.inter l r)
+    
+(*    let vs12 = match vs1,vs2 with
         | None, None -> None
         | None, Some vs2' -> let vs1' = Valuations.all_valuations ts1 in Some (vs_product vs1' vs2')
         | Some vs1', None -> let vs2' = Valuations.all_valuations ts2 in Some (vs_product vs1' vs2')
         | Some vs1', Some vs2' -> Some (vs_product vs1' vs2')
-    in vs12
+    in vs12*)
     
 let explicit (ts : Tuple_set.t) (vs : t) : VS.t =
     match vs with
     | None -> Valuations.all_valuations ts
     | Some vs -> vs
     
-let product_right (ts1 : Tuple_set.t) (vs1 : VS.t) (m2 : [ `Lone | `One | `Some ]) (ts2 : Tuple_set.t) : VS.t =
+(*let product_right (ts1 : Tuple_set.t) (vs1 : VS.t) (m2 : [ `Lone | `One | `Some ]) (ts2 : Tuple_set.t) : VS.t =
     Printf.printf "product right VS1: %s\n" (Yojson.Safe.to_string (vs_to_yojson vs1));
     Printf.printf "product right TS2: %s\n" (Yojson.Safe.to_string (Tuple_set.to_yojson ts2));
     VS.to_iter vs1 |> Iter.flat_map (fun v1 -> Valuations.product_right ts1 v1 m2 ts2) |> VS.of_iter
@@ -127,7 +155,7 @@ let product_with_multiplicities ((ts1,vs1) : Tuple_set.t * t) (m1 : Raw.raw_mult
     let vs12 = match m1,m2 with
         | None, None -> product (ts1,vs1) (ts2,vs2)
         | None, Some m2 ->
-            let r = product_right ts1 (explicit ts1 vs1) m2 ts2 in
+            let r = product_right ts1 (explicit ts1 vs1) m2 ts2 in (*TODO what happens to vs2? check that it is null!*)
             Some r
         | Some m1, None ->
             let l = product_left ts1 m1 ts2 (explicit ts2 vs2) in
@@ -136,6 +164,6 @@ let product_with_multiplicities ((ts1,vs1) : Tuple_set.t * t) (m1 : Raw.raw_mult
             let l = product_left ts1 m1 ts2 (explicit ts2 vs2) in
             let r = product_right ts1 (explicit ts1 vs1) m2 ts2 in
             Some (VS.inter l r)
-    in (ts12,vs12)
+    in (ts12,vs12)*)
 
 

@@ -19,6 +19,8 @@ module Set = CCSet.Make (struct
   
 end)
 
+let union = Tuple_set.union
+
 let add : Tuple.t -> t -> t = Tuple_set.add
 
 let remove : Tuple.t -> t -> t = Tuple_set.remove
@@ -49,12 +51,12 @@ let is_lone (xs : t) : bool =
 let is_some (xs : t) : bool =
     Tuple_set.cardinal xs >= 1
 
-let product (b1 : t) (b2 : t) : t =
+(*let product (b1 : t) (b2 : t) : t =
     let prod =
       Iter.product (Tuple_set.to_iter b1) (Tuple_set.to_iter b2)
       |> Iter.map (Fun.uncurry (Tuple.(@@@)))
       |> Tuple_set.of_iter
-    in prod
+    in prod*)
 
 let all_valuations (ts : Tuple_set.t) : Set.t =
     let rec aux xs = match xs with
@@ -64,11 +66,11 @@ let all_valuations (ts : Tuple_set.t) : Set.t =
             Set.union (Set.map (Tuple_set.add y) tail) tail
     in
     let res = aux (Tuple_set.to_list ts) in
-    Printf.printf "all_valuations TS: %s\n" (Yojson.Safe.to_string (Tuple_set.to_yojson ts));
-    Printf.printf "all_valuations RES: %s\n" (Yojson.Safe.to_string (`List (List.map Tuple_set.to_yojson (Set.elements res))));
+    (*Printf.printf "all_valuations TS: %s\n" (Yojson.Safe.to_string (Tuple_set.to_yojson ts));
+    Printf.printf "all_valuations RES: %s\n" (Yojson.Safe.to_string (`List (List.map Tuple_set.to_yojson (Set.elements res))));*)
     res
 
-let rec tuple_right ((t1,b1) : Tuple.t * bool) (m2 : [ `Lone | `One | `Some ]) (ts2 : Tuple_set.t) : t Iter.t =
+(*let rec tuple_right ((t1,b1) : Tuple.t * bool) (m2 : [ `Lone | `One | `Some ]) (ts2 : Tuple_set.t) : t Iter.t =
     match m2 with
     | `One  -> if b1
         then Tuple_set.to_iter ts2 |> Iter.map (fun t2 -> Tuple_set.singleton (Tuple.(@@@) t1 t2))
@@ -86,12 +88,12 @@ let rec tuple_left (ts1 : Tuple_set.t) (m1 : [ `Lone | `One | `Some ]) ((t2,b2) 
     | `Lone -> tuple_left ts1 `One (t2,b2) |> Iter.cons Tuple_set.empty
     | `Some -> if b2
         then Tuple_set.map (fun t1 -> Tuple.(@@@) t1 t2) ts1 |> all_valuations |> Set.remove Tuple_set.empty |> Set.to_iter
-        else Iter.empty
+        else Iter.empty*)
 
 let to_assoc (ts : Tuple_set.t) (vs : t) : (Tuple.t * bool) list =
     Tuple_set.to_iter ts |> Iter.map (fun t -> (t,Tuple_set.mem t vs)) |> Iter.to_list
 
-let rec tupleMapCatM (go : Tuple.t * bool -> t Iter.t) (s : (Tuple.t * bool) list) : t Iter.t =
+(*let rec tupleMapCatM (go : Tuple.t * bool -> t Iter.t) (s : (Tuple.t * bool) list) : t Iter.t =
     match s with
     | [] -> Iter.return Tuple_set.empty
     | x :: xs ->
@@ -102,5 +104,11 @@ let product_right (ts1 : Tuple_set.t) (v1 : t) (m2 : [ `Lone | `One | `Some ]) (
     tupleMapCatM (fun tb1 -> tuple_right tb1 m2 ts2) (to_assoc ts1 v1)
 
 let product_left (ts1 : Tuple_set.t) (m1 : [ `Lone | `One | `Some ]) (ts2 : Tuple_set.t) (v2 : t) : t Iter.t =
-    tupleMapCatM (fun tb2 -> tuple_left ts1 m1 tb2) (to_assoc ts2 v2)
+    tupleMapCatM (fun tb2 -> tuple_left ts1 m1 tb2) (to_assoc ts2 v2)*)
+
+let tuple_product_right (t1 : Tuple.t) (v2 : t) : t =
+    Tuple_set.map (fun t2 -> Tuple.(@@@) t1 t2) v2
+
+let tuple_product_left (v1 : t) (t2 : Tuple.t) : t =
+    Tuple_set.map (fun t1 -> Tuple.(@@@) t1 t2) v1
 

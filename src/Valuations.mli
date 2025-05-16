@@ -8,6 +8,7 @@ val compare : t -> t -> int
 
 val rename : (Atom.t, Atom.t) List.Assoc.t -> t -> t
 
+val union : t -> t -> t
 val add : Tuple.t -> t -> t
 val remove : Tuple.t -> t -> t
 val removes : Tuple_set.t -> t -> t
@@ -28,7 +29,10 @@ val is_some : t -> bool
 
 val all_valuations : Tuple_set.t -> Set.t
 
-val product : t -> t -> t
+(*val product : t -> t -> t*)
 
-val product_right : Tuple_set.t -> t -> [ `Lone | `One | `Some ] -> Tuple_set.t -> t Iter.t
-val product_left : Tuple_set.t -> [ `Lone | `One | `Some ] -> Tuple_set.t -> t -> t Iter.t
+(*val product_right : Tuple_set.t -> t -> [ `Lone | `One | `Some ] -> Tuple_set.t -> t Iter.t
+val product_left : Tuple_set.t -> [ `Lone | `One | `Some ] -> Tuple_set.t -> t -> t Iter.t*)
+
+val tuple_product_right : Tuple.t -> t -> t
+val tuple_product_left : t -> Tuple.t -> t

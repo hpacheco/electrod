@@ -236,16 +236,53 @@ let rec compute_simple_bound (infile : string option) (domain : Domain.t) (id : 
         let b2 = compute_simple_bound infile domain id rb2 which in
         TS.product b1 b2
     | _ -> failwith "expected simple bound"
-    
-let compute_sup_bound (infile : string option) (domain : Domain.t) (id : Raw_ident.t) (b : raw_bound) : Tuple_set.t * Valuations_set.t =
+
+let rec sup_flatten (sup : Scope.sup_t) : (Tuple_set.t * Valuations_list.t) =
+    match sup with
+    | SupNode (ts,vs) -> (ts,vs)
+    | SupArrow (sup1,sup2) ->
+        let (ts1,vs1) = sup_flatten sup1 in
+        let (ts2,vs2) = sup_flatten sup2 in
+        (TS.product ts1 ts2,Valuations_list.product (ts1,vs1) (ts2,vs2)) (*TODO this product needs to be revised and fixed*)
+
+let sup_apply_multiplicity (mult : Raw.raw_multiplicity) (sup : Scope.sup_t) : Scope.sup_t =
+    match mult with
+    | None -> sup
+    | Some m ->
+        let (sup_ts,sup_vs) = sup_flatten sup in
+        Scope.SupNode (sup_ts,Valuations_list.apply_multiplicity mult sup_ts sup_vs)
+
+let sup_truncate (inf : Scope.inf_t) (sup : Scope.sup_t) : Scope.sup_t =
+    if Tuple_set.is_empty inf then sup
+    else
+        let (sup_ts,sup_vs) = sup_flatten sup in
+        let sup_vs' = Valuations_list.truncate inf sup_ts sup_vs in
+        Scope.SupNode (sup_ts,sup_vs')
+
+let sup_arrow (s1 : Scope.sup_t) (s2 : Scope.sup_t) : Scope.sup_t =
+    match Scope.sup_is_simple s1, Scope.sup_is_simple s2 with
+    | true, true ->
+        let (ts,vs) = sup_flatten (SupArrow (s1,s2))
+        in SupNode (ts,vs)
+    | false, false ->
+        let (ts,vs) = sup_flatten (SupArrow (s1,s2))
+        in SupNode (ts,vs)
+    | _, _ -> SupArrow (s1,s2)
+
+let sup_product_with_multiplicities (s1 : Scope.sup_t) (m1 : Raw.raw_multiplicity) (m2 : Raw.raw_multiplicity) (s2 : Scope.sup_t) : Scope.sup_t =
+    let s1' = sup_apply_multiplicity m1 s1 in
+    let s2' = sup_apply_multiplicity m2 s2 in
+    sup_arrow s1' s2'
+
+let compute_sup_bound (infile : string option) (domain : Domain.t) (id : Raw_ident.t) (b : raw_bound) : Scope.sup_t =
     let rec go b = match b with
         | BProd (b1,m1,m2,b2) ->
-            let tvs1 = go b1 in
-            let tvs2 = go b2 in
-            Valuations_set.product_with_multiplicities tvs1 m1 m2 tvs2
+            let sup1 = go b1 in
+            let sup2 = go b2 in
+            sup_product_with_multiplicities sup1 m1 m2 sup2
         | _ -> 
             let ts = compute_simple_bound infile domain id b `Sup in
-            (ts,Valuations_set.empty)
+            Scope.SupNode (ts,Valuations_list.empty)
     in go b
 
 let compute_scope (infile : string option) (domain : Domain.t) (id : Raw_ident.t) (s : raw_scope) : Scope.t =
@@ -254,10 +291,8 @@ let compute_scope (infile : string option) (domain : Domain.t) (id : Raw_ident.t
         Scope.exact @@ compute_simple_bound infile domain id raw_b `Exact
     | SInexact (raw_inf, mult, raw_sup) ->
         let inf_ts = compute_simple_bound infile domain id raw_inf `Inf in
-        let (sup_ts,sup_vs) = compute_sup_bound infile domain id raw_sup in
-        let sup_vs' = Valuations_set.truncate inf_ts sup_ts (Valuations_set.apply_multiplicity mult sup_ts sup_vs) in
-        let sup_vs'' = Valuations_set.sort sup_vs' in
-        Scope.inexact ((inf_ts,sup_ts),sup_vs'')
+        let sup_ts = compute_sup_bound infile domain id raw_sup in
+        Scope.inexact (inf_ts,sup_truncate inf_ts (sup_apply_multiplicity mult sup_ts))
 
 (*let compute_scope (infile : string) (domain : Domain.t) (id : Raw_ident.t) : raw_scope.t -> Scope.t = function
   | SExact (BProd (_, Some _, _)) ->
