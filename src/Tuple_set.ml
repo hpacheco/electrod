@@ -234,3 +234,10 @@ let rec mapCatM (go : Tuple.t -> t Iter.t) (s : t) : t Iter.t =
         Iter.flat_map (fun vs -> Iter.map (fun tail -> TS.union vs tail) rest) (go x)*)
 
 let elements = TS.elements
+
+let raw_binop (o : Raw.raw_bin) : t -> t -> t =
+    match o with
+    | `Union -> union
+    | `Inter -> inter
+    | `Diff -> diff
+    | `Join -> product

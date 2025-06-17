@@ -1,6 +1,6 @@
 open Containers
 
-type t
+type t = Tuple_set.t
 
 val equal : t -> t -> bool
 
@@ -28,6 +28,7 @@ val is_lone : t -> bool
 val is_some : t -> bool
 
 val all_valuations : Tuple_set.t -> Set.t
+val list_all_valuations : Tuple_set.t -> t list
 
 (*val product : t -> t -> t*)
 

@@ -55,6 +55,7 @@ let rec remove_always_from_invar (Elo.Fml { node; _ } as fml) =
       let fml1' = remove_always_from_invar fml1 in
       let fml2' = remove_always_from_invar fml2 in
       lbinary fml1' and_ fml2'
+  | Quant (q,e,fmls) -> quant q e (List.map remove_always_from_invar fmls)  
   | _ -> fml
 
 let add_always_to_invar (Elo.Fml { node; _ } as fml) =
@@ -93,8 +94,8 @@ class ['self] computer (elo : Elo.t) =
 
     (* quant *)
     method build_Quant () quant' (_, _, range_color) blk_colors =
-      let blk_color = List.fold_left max_color_wiwt Static_prop blk_colors in
-      let sim_binding_color = max_color_wiwt Static_prop range_color in
+      let blk_color = List.fold_left max_color Static_prop blk_colors in (*hpacheco: replaced max_color_wiwt; it is safe to inline quantifications over frozen vars, for which it suffices to use max_color_wiwt for the range *)
+      let sim_binding_color = max_color_wiwt Static_prop range_color in 
       quant' sim_binding_color blk_color
 
     method build_All () = max_color

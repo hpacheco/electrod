@@ -26,6 +26,7 @@ val empty : t
 val add : Name.t -> Relation.t -> t -> t
 (** Adds an association to the domain. 
     The name must not be in the domain already. *)
+val update : Name.t -> Relation.t -> t -> t
 
 val remove : Name.t -> t -> t
 (** Removes a name from the domain, if it is present.  *)

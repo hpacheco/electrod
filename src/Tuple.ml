@@ -28,6 +28,8 @@ type t = Atom.t Array.t
 
 (* Constructors *)
 
+let of_list xs = Array.of_list xs
+
 let of_list1 xs =
   assert (not @@ List.is_empty xs);
   Array.of_list xs

@@ -41,10 +41,13 @@ and raw_scope =
 
 and raw_bound =
   | BUniv
+  | BNone
   | BRef of Raw_ident.t  (** reference to a previously-defined {i set} *)
   | BProd of raw_bound * raw_multiplicity * raw_multiplicity * raw_bound
-  | BUnion of raw_bound * raw_bound
+  | BBin of raw_bound * raw_bin * raw_bound
   | BElts of raw_element list
+
+and raw_bin = [ `Union | `Inter | `Diff | `Join ]
 
 and raw_element =
   | EIntvl of raw_interval  (** 1-tuples *)
@@ -73,9 +76,13 @@ let etuple ats =
 
 let eintvl intvl = EIntvl intvl
 let buniv = BUniv
+let bnone = BNone
 let bref name = BRef name
 let bprod b1 mult1 mult2 b2 = BProd (b1,mult1,mult2,b2)
-let bunion b1 b2 = BUnion (b1, b2)
+let bunion b1 b2 = BBin (b1, `Union, b2)
+let binter b1 b2 = BBin (b1, `Inter, b2)
+let bdiff b1 b2 = BBin (b1, `Diff, b2)
+let bjoin b1 b2 = BBin (b1, `Join, b2)
 let belts elts = BElts elts
 let sexact b = SExact b
 let sinexact b1 mult b2 = SInexact (b1, mult, b2)

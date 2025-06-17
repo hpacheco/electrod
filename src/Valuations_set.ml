@@ -166,4 +166,24 @@ let product_with_multiplicities ((ts1,vs1) : Tuple_set.t * t) (m1 : Raw.raw_mult
             Some (VS.inter l r)
     in (ts12,vs12)*)
 
+(* restrict valuations to a domain of tuples *)
+let restrict_with_tuples (vs1 : VS.t) (ts2 : Tuple_set.t) : VS.t =
+    VS.map (Tuple_set.inter ts2) vs1
+
+let raw_binop (o : Raw.raw_bin) (ts1 : Tuple_set.t) (vs1 : t) (ts2 : Tuple_set.t) (vs2 : t) : t =
+    match vs1,o,vs2 with
+    | None, _, None -> None
+    | Some vs1, `Inter, None -> Some (restrict_with_tuples vs1 ts2)
+    | None, `Inter, Some vs2 -> Some (restrict_with_tuples vs2 ts1)
+    | Some vs1, `Diff, None -> Some (remove_tuples ts2 vs1)
+    | _ ->
+        let evs1 = explicit ts1 vs1 in
+        let evs2 = explicit ts2 vs2 in
+        (match o with
+        | `Union -> Some (VS.union evs1 evs2)
+        | `Inter -> Some (VS.inter evs1 evs2)
+        | `Diff ->  Some (VS.diff evs1 evs2)
+        | `Join ->  failwith "raw_binop: dot of valuations yet unsupported"
+        )
+    
 

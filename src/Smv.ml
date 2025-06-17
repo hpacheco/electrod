@@ -212,6 +212,7 @@ module Make_SMV_LTL (At : Solver.ATOMIC_PROPOSITION) :
         | F p -> prefix ~paren:true upper upper string pp out ("F ", p)
         | G p -> prefix ~paren:true upper upper string pp out ("G ", p)
         | Y p -> prefix ~paren:true upper upper string pp out ("Y ", p)
+        | Z p -> prefix ~paren:true upper upper string pp out ("Z ", p)
         | O p -> prefix ~paren:true upper upper string pp out ("O ", p)
         | H p -> prefix ~paren:true upper upper string pp out ("H ", p)
       and pp_term upper out (t : term) =
@@ -267,7 +268,7 @@ module Make_SMV_LTL (At : Solver.ATOMIC_PROPOSITION) :
           loop (f' :: res)
     and loop_fml ~in_a_term (f : t) : t =
       match f with
-      | X _ | F _ | G _ | Y _ | O _ | H _
+      | X _ | F _ | G _ | Y _ | Z _ | O _ | H _
       | U (_, _)
       | R (_, _)
       | S (_, _)
@@ -297,6 +298,7 @@ module Make_SMV_LTL (At : Solver.ATOMIC_PROPOSITION) :
       | F f1 -> eventually (loop_fml ~in_a_term f1)
       | G f1 -> always (loop_fml ~in_a_term f1)
       | Y f1 -> yesterday (loop_fml ~in_a_term f1)
+      | Z f1 -> zesterday (loop_fml ~in_a_term f1)
       | O f1 -> once (loop_fml ~in_a_term f1)
       | H f1 -> historically (loop_fml ~in_a_term f1)
       | U (f1, f2) -> until (loop_fml ~in_a_term f1) (loop_fml ~in_a_term f2)
@@ -399,12 +401,30 @@ module Make_SMV_file_format (Ltl : Solver.LTL) :
       | None ->
           Fmtc.pf out "%s %s-%a : boolean;@\n" vartype name_str (Fmt.list ~sep:(Fmt.any "-") Fmt.string) tuple_lst
       | Some (vs,ts) ->
-          Fmtc.(pf out "%s __%s-%a : 0..%n;@\n" vartype name_str (Fmt.list ~sep:(Fmt.any "-") Fmt.string) tuple_lst (Valuations_list.size vs - 1));
-          Tuple_set.iter (fun t ->
-              let tuple_str = tuple_to_string (tuple_to_full t pt) in
-              let tuple_idxs = Valuations_list.indices_of t vs in
-              Fmtc.(pf out "DEFINE %s-%s := __%s-%a in {%a};@\n" name_str tuple_str name_str (Fmt.list ~sep:(Fmt.any "-") Fmt.string) tuple_lst (Fmt.list ~sep:(Fmt.any ", ") Fmt.int) tuple_idxs )
-              ) ts
+          if Valuations_list.is_null vs
+              then 
+                  Fmtc.(pf out "%s __%s-%a := FALSE;@\n" vartype name_str (Fmt.list ~sep:(Fmt.any "-") Fmt.string) tuple_lst)
+              else
+                  let sz = Valuations_list.size vs in
+                  if (Stdlib.(==) sz 1)
+                      then
+                          (Tuple_set.iter (fun t ->
+                              let tuple_str = tuple_to_string (tuple_to_full t pt) in
+                              let tuple_idxs = Valuations_list.indices_of t vs in
+                              match tuple_idxs with
+                                  | [] -> Fmtc.(pf out "DEFINE %s-%s := FALSE;@\n" name_str tuple_str )
+                                  | _ -> Fmtc.(pf out "DEFINE %s-%s := TRUE;@\n" name_str tuple_str )
+                              ) ts)
+                      else 
+                              (Fmtc.(pf out "%s __%s-%a : 0..%n;@\n" vartype name_str (Fmt.list ~sep:(Fmt.any "-") Fmt.string) tuple_lst (sz-1));
+                              Tuple_set.iter (fun t ->
+                                  let tuple_str = tuple_to_string (tuple_to_full t pt) in
+                                  let tuple_idxs = Valuations_list.indices_of t vs in
+                                  match tuple_idxs with
+                                      | [] -> Fmtc.(pf out "DEFINE %s-%s := FALSE;@\n" name_str tuple_str )
+                                      | idx :: [] -> Fmtc.(pf out "DEFINE %s-%s := __%s-%a = %a;@\n" name_str tuple_str name_str (Fmt.list ~sep:(Fmt.any "-") Fmt.string) tuple_lst Fmt.int idx )
+                                      | _ -> Fmtc.(pf out "DEFINE %s-%s := __%s-%a in {%a};@\n" name_str tuple_str name_str (Fmt.list ~sep:(Fmt.any "-") Fmt.string) tuple_lst (Fmt.list ~sep:(Fmt.any ", ") Fmt.int) tuple_idxs )
+                                  ) ts)
 
   let pp_sup vartype out name_str (sup : Scope.sup_t) (tuples : Tuple_set.t) =
       Iter.iter (pp_partial_tuple vartype out name_str) (mk_partial_tuples sup tuples)
@@ -441,6 +461,7 @@ module Make_SMV_file_format (Ltl : Solver.LTL) :
               Fmtc.(pf out "DEFINE %s-%s := __%s in {%a};@\n" name_str tuple_str name_str (Fmt.list ~sep:(Fmt.any ", ") Fmt.int) tuple_idxs ))
           tuples*)
 
+  (* we only print used tuples *)
   let pp_decls elo vartype out (atoms : Ltl.Atomic.t Iter.iter) =
       let nmap_update (k,v) m =
           let existing = Name.Map.get k m |> Option.value ~default:Tuple_set.empty in

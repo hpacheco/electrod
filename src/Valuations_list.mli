@@ -6,6 +6,7 @@ type t = (Valuations.t list) option
 val empty : t
 
 val is_empty : t -> bool
+val is_null : t -> bool
 
 val size : t -> int
 
@@ -26,3 +27,7 @@ val truncate : Tuple_set.t -> Tuple_set.t -> t -> t
 val apply_multiplicity : Raw.raw_multiplicity -> Tuple_set.t -> t -> t
 
 val product : (Tuple_set.t * t) -> (Tuple_set.t * t) -> t
+
+val explicit : Tuple_set.t -> t -> Valuations.t list
+
+val raw_binop : Raw.raw_bin -> Tuple_set.t -> t -> Tuple_set.t -> t -> t

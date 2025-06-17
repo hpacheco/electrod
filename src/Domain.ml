@@ -27,6 +27,9 @@ let mem name dom = Map.mem name dom.decls
 let add name rel domain =
   assert (not @@ Map.mem name domain.decls);
   { decls = Map.add name rel domain.decls; bitwidth = domain.bitwidth }
+  
+let update name rel domain =
+  { decls = Map.add name rel domain.decls; bitwidth = domain.bitwidth }
 
 let remove name domain = { domain with decls = Map.remove name domain.decls }
 let get_exn name domain = Map.find name domain.decls

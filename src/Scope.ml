@@ -108,3 +108,133 @@ module P = Intf.Print.Mixin (struct
 end)
 
 include P
+
+let rec sup_flatten (sup : sup_t) : (TS.t * VL.t) =
+    match sup with
+    | SupNode (ts,vs) -> (ts,vs)
+    | SupArrow (sup1,sup2) ->
+        let (ts1,vs1) = sup_flatten sup1 in
+        let (ts2,vs2) = sup_flatten sup2 in
+        (TS.product ts1 ts2,VL.product (ts1,vs1) (ts2,vs2)) (*TODO this product needs to be revised and fixed*)
+
+let sup_apply_multiplicity (mult : Raw.raw_multiplicity) (sup : sup_t) : sup_t =
+    match mult with
+    | None -> sup
+    | Some m ->
+        let (sup_ts,sup_vs) = sup_flatten sup in
+        SupNode (sup_ts,VL.apply_multiplicity mult sup_ts sup_vs)
+
+let sup_truncate (inf : inf_t) (sup : sup_t) : sup_t =
+    if TS.is_empty inf then sup
+    else
+        let (sup_ts,sup_vs) = sup_flatten sup in
+        let sup_vs' = VL.truncate inf sup_ts sup_vs in
+        SupNode (sup_ts,sup_vs')
+
+let sup_arrow (s1 : sup_t) (s2 : sup_t) : sup_t =
+    match sup_is_simple s1, sup_is_simple s2 with
+    | true, true ->
+        let (ts,vs) = sup_flatten (SupArrow (s1,s2))
+        in SupNode (ts,vs)
+    | false, false ->
+        let (ts,vs) = sup_flatten (SupArrow (s1,s2))
+        in SupNode (ts,vs)
+    | _, _ -> SupArrow (s1,s2)
+
+let sup_product_with_multiplicities (s1 : sup_t) (m1 : Raw.raw_multiplicity) (m2 : Raw.raw_multiplicity) (s2 : sup_t) : sup_t =
+    let s1' = sup_apply_multiplicity m1 s1 in
+    let s2' = sup_apply_multiplicity m2 s2 in
+    sup_arrow s1' s2'
+
+let rec sup_binop (s1 : sup_t) (o : Raw.raw_bin) (s2 : sup_t) : sup_t =
+    match s1,s2 with
+    | SupArrow (ls1,rs1), SupArrow (ls2,rs2) -> SupArrow (sup_binop ls1 o ls2,sup_binop rs1 o rs2)
+    | _ ->
+        let (ts1,vs1) = sup_flatten s1 in
+        let (ts2,vs2) = sup_flatten s2 in
+        let ts12 = TS.raw_binop o ts1 ts2 in
+        let vs12 = VL.raw_binop o ts1 vs1 ts2 vs2 in
+        SupNode (ts12,vs12)
+    
+
+(* a partial tuple *)
+type patom = Atom.t option
+type ptuple = patom list
+
+let patom_pp (fmt : Format.formatter) (pa : patom) : unit =
+    match pa with
+    | None -> Format.fprintf fmt "-"
+    | Some a -> Atom.pp fmt a
+
+let ptuple_pp (fmt : Format.formatter) (pt : ptuple) : unit =
+    List.pp patom_pp fmt pt
+
+let rec split_ptuple (i : int) (xs : ptuple) : (ptuple * ptuple) =
+    if i <= 0
+        then (List.empty,xs)
+        else
+            match xs with
+            | [] -> failwith "split_ptuple empty"
+            | x :: ys -> 
+                let (l,r) = split_ptuple (i-1) ys in
+                (List.cons x l,r)
+
+let join_patom (x : patom) (y : patom) : patom =
+    match x,y with
+    | Some n1,Some n2 -> if Atom.equal n1 n2 then Some n1 else None
+    | _ -> None
+
+(* just the similar sections of two ptuples *)
+let join_ptuple (x : ptuple) (y : ptuple) : ptuple =
+    List.map (fun (x,y) -> join_patom x y) (List.combine x y)
+
+let is_full_ptuple (pt : ptuple) : bool =
+    let isSome mb = (match mb with
+        | Some _ -> true
+        | None -> false)
+    in List.fold_left (fun b mb -> b && isSome mb) true pt
+
+let to_ptuple (t : Tuple.t) : ptuple =
+    List.map (fun x -> Some x) (Tuple.to_list t)
+
+let from_ptuple (pt : ptuple) : Tuple.t =
+    let fromSome mb = (match mb with
+            | None -> failwith "from_ptuple"
+            | Some x -> x) in
+    Tuple.of_list (List.map fromSome pt)
+
+let rec ptuple_sup (pt : ptuple) (sup : sup_t) : sup_t = match sup with
+    | SupNode (ts,vs) -> SupNode (ts,vs)
+    | SupArrow (l,r) ->
+        let (ptl,ptr) = split_ptuple (sup_arity l) pt in
+        if is_full_ptuple ptl
+            then SupArrow (l,ptuple_sup ptr r)
+            else if is_full_ptuple ptr
+                then SupArrow (ptuple_sup ptl l,r)
+                else let (ts,vs) = sup_flatten sup in SupNode (ts,vs)
+
+let rec filter_sup (pt : ptuple) (f : Valuations.t -> bool) (s : sup_t) : sup_t = match s with
+    | SupNode (ts,vs) ->
+        let vs1 = VL.explicit ts vs in
+        let vs2 = List.filter f vs1 in
+        SupNode (ts,Some vs2)
+    | SupArrow (l,r) ->
+        let (ptl,ptr) = split_ptuple (sup_arity l) pt in
+        if is_full_ptuple ptl
+            then
+                let fr vsr = f (Valuations.tuple_product_right (from_ptuple ptl) vsr) in
+                SupArrow (l,filter_sup ptr fr r)
+            else if is_full_ptuple ptr
+                then 
+                    let fl vsl = f (Valuations.tuple_product_left vsl (from_ptuple ptr)) in
+                    SupArrow (filter_sup ptr fl l,r)
+                else 
+                    let (ts,vs) = sup_flatten s in
+                    let vs1 = VL.explicit ts vs in
+                    let vs2 = List.filter f vs1 in
+                    SupNode (ts,Some vs2)
+
+let filter_scope (pt : ptuple) (f : Valuations.t -> bool) (s : t) : t = match s with
+    | Exact ts -> Exact ts
+    | Inexact (inf,sup) -> Inexact (inf,filter_sup pt f sup)
+

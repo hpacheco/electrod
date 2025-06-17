@@ -144,8 +144,10 @@ next_scope: THEN sc = scope
 bound:
 	UNIV
 	{ Raw.buniv }
-  | id = PLAIN_ID
-  { Raw.bref (Raw_ident.ident id $startpos(id) $endpos(id)) }
+    | NONE
+	{ Raw.bnone }
+    | id = PLAIN_ID
+    { Raw.bref (Raw_ident.ident id $startpos(id) $endpos(id)) }
 	| b = parens(bound)
 	{ b }
     | b1 = bound ARROW b2 = bound
@@ -158,8 +160,14 @@ bound:
       { Raw.bprod b1 (mult1) (mult2) b2 }
 	| b1 = bound PLUS b2 = bound
 	{ Raw.bunion b1 b2  }
-  | elts = braces(element*)
-  { Raw.belts elts }
+	| b1 = bound INTER b2 = bound
+	{ Raw.binter b1 b2  }
+	| b1 = bound MINUS b2 = bound
+	{ Raw.bdiff b1 b2  }
+	| b1 = bound DOT b2 = bound
+	{ Raw.bjoin b1 b2  }
+    | elts = braces(element*)
+    { Raw.belts elts }
 
 boundmult:
   LONE

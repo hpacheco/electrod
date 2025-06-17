@@ -43,11 +43,14 @@ and raw_scope = private
 
 and raw_bound = private
   | BUniv
+  | BNone
   | BRef of Raw_ident.t  (** reference to a previously-defined {i set} *)
   | BProd of raw_bound * raw_multiplicity * raw_multiplicity * raw_bound
       (** None/Some (lone/one) *)
-  | BUnion of raw_bound * raw_bound
+  | BBin of raw_bound * raw_bin * raw_bound
   | BElts of raw_element list
+
+and raw_bin = [ `Union | `Inter | `Diff | `Join ]
 
 and raw_element = private
   | EIntvl of raw_interval  (** 1-tuples *)
@@ -81,9 +84,13 @@ val interval : Raw_ident.t -> Raw_ident.t -> raw_interval
 val etuple : Raw_ident.t list -> raw_element
 val eintvl : raw_interval -> raw_element
 val buniv : raw_bound
+val bnone : raw_bound
 val bref : Raw_ident.t -> raw_bound
 val bprod : raw_bound -> raw_multiplicity -> raw_multiplicity -> raw_bound -> raw_bound
 val bunion : raw_bound -> raw_bound -> raw_bound
+val binter : raw_bound -> raw_bound -> raw_bound
+val bdiff : raw_bound -> raw_bound -> raw_bound
+val bjoin : raw_bound -> raw_bound -> raw_bound
 val belts : raw_element list -> raw_bound
 val sexact : raw_bound -> raw_scope
 val sinexact : raw_bound -> raw_multiplicity -> raw_bound -> raw_scope

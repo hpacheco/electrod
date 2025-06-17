@@ -70,6 +70,9 @@ let all_valuations (ts : Tuple_set.t) : Set.t =
     Printf.printf "all_valuations RES: %s\n" (Yojson.Safe.to_string (`List (List.map Tuple_set.to_yojson (Set.elements res))));*)
     res
 
+let list_all_valuations (ts : Tuple_set.t) : t list =
+    Set.to_list (all_valuations ts)
+
 (*let rec tuple_right ((t1,b1) : Tuple.t * bool) (m2 : [ `Lone | `One | `Some ]) (ts2 : Tuple_set.t) : t Iter.t =
     match m2 with
     | `One  -> if b1

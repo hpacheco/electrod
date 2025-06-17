@@ -62,3 +62,19 @@ include Intf.Print.S with type t := t
 
 val to_yojson : t -> Yojson.Safe.t
 val of_yojson : Yojson.Safe.t -> (t, string) result
+
+val sup_flatten : sup_t -> (Tuple_set.t * Valuations_list.t)
+val sup_apply_multiplicity : Raw.raw_multiplicity -> sup_t -> sup_t
+val sup_truncate : inf_t -> sup_t -> sup_t
+val sup_arrow : sup_t -> sup_t -> sup_t
+val sup_product_with_multiplicities : sup_t -> Raw.raw_multiplicity -> Raw.raw_multiplicity -> sup_t -> sup_t
+val sup_binop : sup_t -> Raw.raw_bin -> sup_t -> sup_t
+
+type ptuple = (Atom.t option) list
+val ptuple_pp : Format.formatter -> ptuple -> unit
+val join_ptuple : ptuple -> ptuple -> ptuple
+val to_ptuple : Tuple.t -> ptuple
+val from_ptuple : ptuple -> Tuple.t
+
+val filter_scope : ptuple -> (Valuations.t -> bool) -> t -> t
+

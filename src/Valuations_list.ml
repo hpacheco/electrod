@@ -5,6 +5,12 @@ type t = (Valuations.t list) option
 
 let empty = None
 
+let is_null vs = match vs with
+    | None -> true
+    | Some xs -> (match xs with
+        | [] -> true
+        | _ -> false)
+
 let is_empty vs = match vs with
     | None -> true
     | Some _ -> false
@@ -46,5 +52,15 @@ let truncate (inf : Tuple_set.t) (sup : Tuple_set.t) (vs : t) : t =
 
 let product ((ts1,vs1) : Tuple_set.t * t) ((ts2,vs2) : Tuple_set.t * t) : t =
     of_set (Valuations_set.product (ts1,to_set vs1) (ts2,to_set vs2))
+    
+let explicit (ts : Tuple_set.t) (vs : t) : Valuations.t list =
+    match vs with
+    | None -> Valuations.list_all_valuations ts
+    | Some vs -> vs
+    
+let raw_binop (o : Raw.raw_bin) (ts1 : Tuple_set.t) (vs1 : t) (ts2 : Tuple_set.t) (vs2 : t) : t =
+    of_set (Valuations_set.raw_binop o ts1 (to_set vs1) ts2 (to_set vs2))
+    
+    
     
     

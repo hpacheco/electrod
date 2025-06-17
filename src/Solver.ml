@@ -72,6 +72,7 @@ module type LTL = sig
     | F of t
     | G of t
     | Y of t
+    | Z of t
     | O of t
     | H of t
     | U of t * t
@@ -106,6 +107,7 @@ module type LTL = sig
   val always : t -> t
   val eventually : t -> t
   val yesterday : t -> t
+  val zesterday : t -> t
   val once : t -> t
   val historically : t -> t
   val until : t -> t -> t
@@ -187,6 +189,7 @@ struct
     | F of t
     | G of t
     | Y of t
+    | Z of t
     | O of t
     | H of t
     | U of t * t
@@ -288,6 +291,7 @@ struct
   let always p = G p
   let eventually p = F p
   let yesterday p = Y p
+  let zesterday p = Z p
   let once p = O p
   let historically p = H p
   let until p1 p2 = U (p1, p2)

@@ -198,6 +198,7 @@ let check_tuples_arities_and_duplicates infile id = function
 let rec compute_simple_bound (infile : string option) (domain : Domain.t) (id : Raw_ident.t) (b : raw_bound) (which : [ `Inf | `Sup | `Exact ]) : Tuple_set.t =
     match b with
     | BUniv -> (Domain.univ_atoms domain)
+    | BNone -> Tuple_set.empty
     | BElts elts -> 
         let tuples = List.flat_map (compute_tuples infile domain id) elts in
         let bnd = check_tuples_arities_and_duplicates infile id tuples in
@@ -205,17 +206,17 @@ let rec compute_simple_bound (infile : string option) (domain : Domain.t) (id : 
             Msg.Warn.duplicate_elements (fun args ->
               args infile id which TS.pp bnd);
         bnd
-    | BUnion (rb1, rb2) ->
+    | BBin (rb1, o, rb2) ->
         let b1 = compute_simple_bound infile domain id rb1 which in
         let b2 = compute_simple_bound infile domain id rb2 which in
-        if TS.inferred_arity b1 = TS.inferred_arity b2 then TS.union b1 b2
+        if TS.inferred_arity b1 = TS.inferred_arity b2 then TS.raw_binop o b1 b2
         else Msg.Fatal.incompatible_arities @@ fun args -> args infile id
     | BRef ref_id -> 
         (match Domain.get (Name.of_raw_ident ref_id) domain with
         | None -> Msg.Fatal.undeclared_id (fun args -> args infile ref_id)
         | Some rel -> (
             match rel with
-            | Const { scope = Exact b; _ } when TS.inferred_arity b = 1 -> b
+            | Const { scope = Exact b; _ } -> b
             | Const { scope = Inexact _ as sc; _ } ->
                 let sup = Scope.sup sc in
                 if TS.inferred_arity sup = 1 then
@@ -228,7 +229,7 @@ let rec compute_simple_bound (infile : string option) (domain : Domain.t) (id : 
                 else
                   Msg.Fatal.should_denote_a_constant_set @@ fun args ->
                   args infile ref_id
-            | Const { scope = Exact _; _ } | Var _ ->
+            | Var _ ->
                 Msg.Fatal.should_denote_a_constant_set @@ fun args ->
                 args infile ref_id))
     | BProd (rb1,None,None,rb2) ->
@@ -237,49 +238,16 @@ let rec compute_simple_bound (infile : string option) (domain : Domain.t) (id : 
         TS.product b1 b2
     | _ -> failwith "expected simple bound"
 
-let rec sup_flatten (sup : Scope.sup_t) : (Tuple_set.t * Valuations_list.t) =
-    match sup with
-    | SupNode (ts,vs) -> (ts,vs)
-    | SupArrow (sup1,sup2) ->
-        let (ts1,vs1) = sup_flatten sup1 in
-        let (ts2,vs2) = sup_flatten sup2 in
-        (TS.product ts1 ts2,Valuations_list.product (ts1,vs1) (ts2,vs2)) (*TODO this product needs to be revised and fixed*)
-
-let sup_apply_multiplicity (mult : Raw.raw_multiplicity) (sup : Scope.sup_t) : Scope.sup_t =
-    match mult with
-    | None -> sup
-    | Some m ->
-        let (sup_ts,sup_vs) = sup_flatten sup in
-        Scope.SupNode (sup_ts,Valuations_list.apply_multiplicity mult sup_ts sup_vs)
-
-let sup_truncate (inf : Scope.inf_t) (sup : Scope.sup_t) : Scope.sup_t =
-    if Tuple_set.is_empty inf then sup
-    else
-        let (sup_ts,sup_vs) = sup_flatten sup in
-        let sup_vs' = Valuations_list.truncate inf sup_ts sup_vs in
-        Scope.SupNode (sup_ts,sup_vs')
-
-let sup_arrow (s1 : Scope.sup_t) (s2 : Scope.sup_t) : Scope.sup_t =
-    match Scope.sup_is_simple s1, Scope.sup_is_simple s2 with
-    | true, true ->
-        let (ts,vs) = sup_flatten (SupArrow (s1,s2))
-        in SupNode (ts,vs)
-    | false, false ->
-        let (ts,vs) = sup_flatten (SupArrow (s1,s2))
-        in SupNode (ts,vs)
-    | _, _ -> SupArrow (s1,s2)
-
-let sup_product_with_multiplicities (s1 : Scope.sup_t) (m1 : Raw.raw_multiplicity) (m2 : Raw.raw_multiplicity) (s2 : Scope.sup_t) : Scope.sup_t =
-    let s1' = sup_apply_multiplicity m1 s1 in
-    let s2' = sup_apply_multiplicity m2 s2 in
-    sup_arrow s1' s2'
-
 let compute_sup_bound (infile : string option) (domain : Domain.t) (id : Raw_ident.t) (b : raw_bound) : Scope.sup_t =
     let rec go b = match b with
         | BProd (b1,m1,m2,b2) ->
             let sup1 = go b1 in
             let sup2 = go b2 in
-            sup_product_with_multiplicities sup1 m1 m2 sup2
+            Scope.sup_product_with_multiplicities sup1 m1 m2 sup2
+        | BBin (b1,o,b2) ->
+            let sup1 = go b1 in
+            let sup2 = go b2 in
+            Scope.sup_binop sup1 o sup2
         | _ -> 
             let ts = compute_simple_bound infile domain id b `Sup in
             Scope.SupNode (ts,Valuations_list.empty)
@@ -292,7 +260,7 @@ let compute_scope (infile : string option) (domain : Domain.t) (id : Raw_ident.t
     | SInexact (raw_inf, mult, raw_sup) ->
         let inf_ts = compute_simple_bound infile domain id raw_inf `Inf in
         let sup_ts = compute_sup_bound infile domain id raw_sup in
-        Scope.inexact (inf_ts,sup_truncate inf_ts (sup_apply_multiplicity mult sup_ts))
+        Scope.inexact (inf_ts,Scope.sup_truncate inf_ts (Scope.sup_apply_multiplicity mult sup_ts))
 
 (*let compute_scope (infile : string) (domain : Domain.t) (id : Raw_ident.t) : raw_scope.t -> Scope.t = function
   | SExact (BProd (_, Some _, _)) ->
@@ -397,10 +365,11 @@ let compute_domain (pb : Raw.raw_problem) =
   let update dom decl =
     let name = Name.of_raw_ident @@ Raw.decl_id decl in
     let rel = compute_decl pb.file dom decl in
-    Domain.add name rel dom
-    (* |> tap Msg.debug *)
-    (*   (fun m -> m "Raw_to_ast.compute_domain:update add %a ⇒ %a" *)
-    (*               Name.pp name (Fmtc.hbox @@ Domain.pp) newdom) *)
+    let newdom = Domain.add name rel dom in
+    (*Msg.debug 
+       (fun m -> m "Raw_to_ast.compute_domain:update add %a ⇒ %a" 
+                   Name.pp name (Fmtc.hbox @@ Domain.pp) newdom);*)
+    newdom
   in
   let domain = List.fold_left update init pb.raw_decls in
   (* add Int = {} if Int is absent *)

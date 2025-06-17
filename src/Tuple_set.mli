@@ -116,3 +116,5 @@ val mapMaybeM : (Tuple.t -> (Tuple.t option) Iter.t) -> t -> t Iter.t
 val mapCatM : (Tuple.t -> t Iter.t) -> t -> t Iter.t*)
 
 val elements : t -> Tuple.t list
+
+val raw_binop : Raw.raw_bin -> t -> t -> t

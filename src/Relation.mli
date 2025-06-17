@@ -45,6 +45,7 @@ val is_var : t -> bool
 
 val scope : t -> Scope.t
 (** Returns the scope of a relation (for variable relations: not [fby]!)  *)
+val set_scope : Scope.t -> t -> t
 
 val must : t -> Tuple_set.t
 val may : t -> Tuple_set.t

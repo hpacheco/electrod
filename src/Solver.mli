@@ -68,6 +68,7 @@ module type LTL = sig
     | F of t
     | G of t
     | Y of t
+    | Z of t
     | O of t
     | H of t
     | U of t * t
@@ -102,6 +103,7 @@ module type LTL = sig
   val always : t -> t
   val eventually : t -> t
   val yesterday : t -> t
+  val zesterday : t -> t
   val once : t -> t
   val historically : t -> t
   val until : t -> t -> t

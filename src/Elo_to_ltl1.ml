@@ -756,6 +756,7 @@ module Make (Ltl : Solver.LTL) = struct
   (* Converts an Ast formula to an LTL formula, gathering at the same time the
      rigid and flexible variables having appeared during the walk. *)
   let convert elo elo_fml =
+    (*Msg.debug (fun m -> m "converting %a@\n" (Elo.pp_fml 0) elo_fml);*)
     let comment = formula_as_comment elo_fml in
     (* Msg.debug (fun m ->
         m

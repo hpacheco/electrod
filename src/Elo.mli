@@ -874,4 +874,3 @@ class virtual ['c] fold :
     method private visit_unit : 'env. 'env -> unit -> unit
   end
 
-
