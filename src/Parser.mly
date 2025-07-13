@@ -148,8 +148,6 @@ bound:
 	{ Raw.bnone }
     | id = PLAIN_ID
     { Raw.bref (Raw_ident.ident id $startpos(id) $endpos(id)) }
-	| b = parens(bound)
-	{ b }
     | b1 = bound ARROW b2 = bound
       { Raw.bprod b1 None None b2 }
     | b1 = bound mult1 = boundmult ARROW b2 = bound
@@ -168,6 +166,15 @@ bound:
 	{ Raw.bjoin b1 b2  }
     | elts = braces(element*)
     { Raw.belts elts }
+    | b = parens (mult_bound)
+    { b }
+
+mult_bound:
+    m = boundmult b = bound
+    { Raw.bmult m b }
+    | b = bound
+    { b }
+    
 
 boundmult:
   LONE

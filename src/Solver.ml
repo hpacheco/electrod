@@ -48,6 +48,8 @@ module type ATOMIC_PROPOSITION = sig
   val split_string : string -> (Name.t * Tuple.t) option
   val split : t -> (Name.t * Tuple.t) option
   val pp : Format.formatter -> t -> unit
+  val register_enum : string -> Name.t -> Enums.partial_tuple -> unit
+  val lookup_enum : string -> (Name.t * Enums.partial_tuple) option
 end
 
 module type LTL = sig
@@ -399,6 +401,7 @@ module type MODEL = sig
     cmd:string ->
     script:script_type ->
     keep_files:bool ->
+    only_used:bool -> 
     no_analysis:bool ->
     elo:Elo.t ->
     file:string ->
@@ -409,5 +412,5 @@ module type MODEL = sig
     
   val backtrace : bmc:int option -> string * string -> Outcome.t
 
-  val pp : ?margin:int -> Format.formatter -> t -> unit
+  val pp : only_used:bool -> ?margin:int -> Format.formatter -> t -> unit
 end

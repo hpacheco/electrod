@@ -14,6 +14,8 @@
 
 open Containers
 
+type atomic_val = Bool of bool | Int of int
+
 (** Represents a result trace (or the absence thereof).  *)
 
 type valuation

@@ -240,4 +240,4 @@ let raw_binop (o : Raw.raw_bin) : t -> t -> t =
     | `Union -> union
     | `Inter -> inter
     | `Diff -> diff
-    | `Join -> product
+    | `Join -> join

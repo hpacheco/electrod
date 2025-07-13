@@ -14,6 +14,8 @@
 
 %parameter <D : sig
   val base : (Name.t, Tuple_set.t) CCList.Assoc.t 
+  val parse_enum : string -> int -> (Name.t * Tuple_set.t)
+  val split_string : string -> (Name.t * Tuple.t) option
 end>
 
 %{
@@ -49,19 +51,22 @@ module Libelectrod = struct end
   let upd tuple = function
     | None -> Some (Tuple_set.singleton tuple)
     | Some ts -> Some (Tuple_set.add tuple ts)
+
+  let upds tuples = function
+    | None -> Some tuples
+    | Some ts -> Some (Tuple_set.union tuples ts)
     
-  let convert_name_tuple_l ntl =
+  (* returns tuplesets that are true for each sig *)
+  (*let convert_name_tuple_l (ntl : (Name.t * Tuple.t) list) : (Name.t, Tuple_set.t) List.Assoc.t =
     let rec walk acc = function
       | [] -> acc
-      (* if None: means that atom was FALSE, else TRUE *)
-      | None::tl -> walk acc tl
-      | Some (name, tuple)::tl ->
+      | (name, tuple)::tl ->
          begin
            (* Msg.debug (fun m -> m "conv (%a, %a)" Name.pp name Tuple.pp tuple); *)
            let acc2 = update ~eq:Name.equal (upd tuple) name acc in
            walk acc2 tl
          end
-    in walk D.base ntl
+    in walk D.base ntl*)
 
 
   (* From what we gathered, we should remove the last state from the returned
@@ -74,6 +79,17 @@ module Libelectrod = struct end
     | [_] -> []
     | hd::tl -> hd :: remove_last tl
     
+  let parse_atomic (acc : (Name.t, Tuple_set.t) List.Assoc.t) (x : (string * Outcome.atomic_val)) : (Name.t, Tuple_set.t) List.Assoc.t =
+      match x with
+      | (v,Bool false) -> acc
+      | (v,Bool true) -> (match D.split_string v with
+          | None -> failwith "parse_atomic unknown name-tuple"
+          | Some (name,tuple) -> update ~eq:Name.equal (upd tuple) name acc
+          )
+      | (v,Int n) -> let (name,tuples) = D.parse_enum v n in update ~eq:Name.equal (upds tuples) name acc
+    
+  let parse_atomics (xs : (string * Outcome.atomic_val) list) : (Name.t, Tuple_set.t) List.Assoc.t =
+      List.fold_left parse_atomic [] xs
        
 %}
   
@@ -86,13 +102,13 @@ module Libelectrod = struct end
 %public trace:
 states = state+ EOF 
     {
-      remove_last states
+      (*remove_last*) states
     }
 
 state:
  loop = iboption(LOOP) STATE ntl = atomic*
     {
-      let valu = Outcome.valuation @@ convert_name_tuple_l ntl in
+      let valu = Outcome.valuation @@ (parse_atomics ntl) in
       if loop && not !met_one_loop then (* nuXmv may report several loop states, we only keep one *)
         (met_one_loop := true;
          Outcome.loop_state valu)
@@ -101,10 +117,12 @@ state:
     }
 
 atomic:
- ATOMIC EQUAL FALSE
-    { None }                
+ v = ATOMIC EQUAL FALSE
+    { (v,Bool false) }                
 | v = ATOMIC EQUAL TRUE
-    { Some v }
+    { (v,Bool true) }
+| v = ATOMIC EQUAL n = NUMBER
+    { (v,Int n) }
     
 ////////////////////////////////////////////////////////////////////////
 // MENHIR MACROS

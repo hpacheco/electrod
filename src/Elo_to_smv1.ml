@@ -40,6 +40,8 @@ module SMV_atom : Solver.ATOMIC_PROPOSITION = struct
   module HT = CCHashtbl.Make (Symbol)
 
   let names_and_tuples = HT.create 179
+  
+  let enums = HT.create 179
 
   let cache =
     CCCache.unbounded
@@ -51,6 +53,14 @@ module SMV_atom : Solver.ATOMIC_PROPOSITION = struct
 
   let rel_sep = "-"
   let atom_sep = Fmtc.minus
+
+  let register_enum (str : string) (name : Name.t) (pt : Enums.partial_tuple) : unit =
+      let sym = Symbol.make str in
+      HT.add enums sym (name,pt)
+      
+  let lookup_enum (str : string) : (Name.t * Enums.partial_tuple) option =
+      (*HT.iter (fun key _value -> Printf.printf "Key: %s\n" (Symbol.to_string key)) enums;*)
+      HT.get enums (Symbol.make str)
 
   let make (domain : Domain.t) : Name.t -> Tuple.t -> t =
     let name_tuple (name, tuple) =
@@ -78,15 +88,26 @@ module SMV_atom : Solver.ATOMIC_PROPOSITION = struct
     in
     fun name tuple -> CCCache.with_cache cache name_tuple (name, tuple)
 
-  let dump () =
+  let dump_names_and_tuples () : Yojson.Safe.t =
       let items = 
         HT.fold (fun sym (name, tuple) acc ->
           let v = `Tuple [Name.to_yojson name;Tuple.to_yojson tuple] in
           v :: acc
         ) names_and_tuples []
       in `List items
+      
+  let dump_enums () : Yojson.Safe.t =
+      let items = HT.fold (fun sym (name,pt) acc -> 
+          let v = (Symbol.to_string sym,`Tuple [Name.to_yojson name ; Enums.partial_tuple_to_yojson pt])
+          in v :: acc) enums []
+      in `Assoc items
 
-  let restore (domain : Domain.t) (json : Yojson.Safe.t) = 
+  let dump () : Yojson.Safe.t =
+      let x = dump_names_and_tuples () in
+      let y = dump_enums () in
+      `Tuple [x;y]
+
+  let restore_names_and_tuples (domain : Domain.t) (json : Yojson.Safe.t) : unit = 
       match json with
       | `List fields ->
           let make_aux = make domain in
@@ -98,6 +119,28 @@ module SMV_atom : Solver.ATOMIC_PROPOSITION = struct
                 | _ -> failwith "Expected a JSON array with two elements"  
           in List.iter make_json fields
       | _ -> failwith "Expected a JSON object"
+
+  let restore_enum (str : string) (json : Yojson.Safe.t) : unit = 
+      match json with
+      | `Tuple (x :: y :: []) ->
+          (
+          match (Name.of_yojson x,Enums.partial_tuple_of_yojson y) with
+          | (Ok name, Ok pt) -> register_enum str name pt
+          | _ -> failwith "restore_enum error"
+          )
+      | _ -> failwith "Expected a JSON binary Tuple"
+
+  let restore_enums (json : Yojson.Safe.t) : unit = 
+      match json with
+      | `Assoc items -> List.iter (fun (sym,t) -> restore_enum sym t) items
+      | _ -> failwith "Expected a JSON Assoc"
+
+  let restore (domain : Domain.t) (json : Yojson.Safe.t) : unit = 
+      match json with
+      | `Tuple (json1 :: json2 :: []) -> 
+          restore_names_and_tuples domain json1;
+          restore_enums json2
+      | _ -> failwith "restore"
 
   let split at = HT.get names_and_tuples at.sym
   let split_string str =

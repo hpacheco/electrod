@@ -43,7 +43,9 @@ let ident = plain_id (dollar number)?
 
 let loop_msg = "-- Loop starts here"
 
-let state = "->" whitespace+ "State:" whitespace+ digit+ '.' digit+ whitespace+ "<-"
+let state_id = digit ('.' | digit)*
+
+let state = "->" whitespace+ "State:" whitespace+ state_id whitespace+ "<-"
 
 let rel_sep = '-'
 
@@ -57,11 +59,11 @@ let valu = (letter | digit | '_' | '#' | '$' | '-')+
 
 let ltlspecf = "LTL_" digit+ "_SPECF_" digit+
 
-rule main split_atomic = parse
+rule main = parse
   | newline
-      { new_line lexbuf; main split_atomic lexbuf }
+      { new_line lexbuf; main lexbuf }
   | whitespace+
-      { main split_atomic lexbuf }
+      { main lexbuf }
 
   (* workaround nuXmv bug *)
   | (ltlspecf as v) whitespace+ '=' whitespace+ ("FALSE" | "TRUE")
@@ -71,7 +73,7 @@ rule main split_atomic = parse
             met_spurious_variable := true;
             Msg.Warn.met_spurious_variable (fun args -> args v)
           end;
-        main split_atomic lexbuf }
+        main lexbuf }
 
   | loop_msg
       { LOOP }
@@ -84,14 +86,18 @@ rule main split_atomic = parse
 
   | "TRUE"
       { TRUE }
+      
+  | number as n
+      { NUMBER (int_of_string n) }
 
   | valu as v
-    { match split_atomic v with
+    { (*match split_atomic v with
       | None ->
           Msg.Fatal.lexical
           @@ fun args -> args None lexbuf
                        ("SMV trace scanning: unknown variable: " ^ v)                           
-      | Some pair -> ATOMIC pair
+      | Some pair -> ATOMIC pair*)
+        ATOMIC v
     }
 
   | '='

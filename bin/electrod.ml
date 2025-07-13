@@ -120,6 +120,12 @@ let single_formula =
 let back_trace =
   let doc = "Converts the trace output of a tool back to a XML file. Receives a FILE.info with the session and expects the input file to have a trace." in
   Arg.(value & opt (some file) None & info ["bt"; "back-trace"] ~docv:"FILE" ~doc)
+  
+let only_used =
+    let doc =
+      {|Generates code only for used atoms.|}
+in
+    Arg.(value & opt bool true & info [ "ou"; "only-used" ] ~doc)
 
 (* verbosity options (already def'd in Logs_cli, thx!) *)
 let verb_term = Logs_cli.level ()
@@ -131,7 +137,7 @@ let main_term =
   Term.(
     const Main.main $ color_term $ verb_term $ tool $ infile $ script
     $ keep_files $ no_analysis $ print_generated $ outcome_format $ long_names
-    $ bmc_length $ temporal_symmetry $ symmetry_offset $ single_formula $ back_trace)
+    $ bmc_length $ temporal_symmetry $ symmetry_offset $ single_formula $ only_used $ back_trace)
 
 let main_info =
   let doc = "formal analysis of Electrod models" in

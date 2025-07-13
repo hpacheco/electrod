@@ -14,6 +14,8 @@
 
 open Containers
 
+type atomic_val = Bool of bool | Int of int
+
 type t = {
   trace : states option;
   nbvars : int;
@@ -72,9 +74,9 @@ let sort_states (atom_renaming, name_renaming) states =
     states
 
 let trace back_renamings nbvars conversion_time analysis_time states =
-  assert (
+(*  assert (
     (not @@ List.is_empty states)
-    && List.exists (function Loop, _ -> true | Plain, _ -> false) states);
+    && List.exists (function Loop, _ -> true | Plain, _ -> false) states);*)
   {
     trace = Some (sort_states back_renamings states);
     analysis_time;

@@ -60,4 +60,5 @@
  (merge_into Smv_trace_parser)
  (flags
   (--external-tokens Smv_trace_tokens))
- (modules Smv_trace_parser Smv_trace_tokens))
+ (modules Smv_trace_parser Smv_trace_tokens)
+ )

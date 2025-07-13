@@ -130,6 +130,7 @@ let check_tuples_arities_and_duplicates infile id = function
       let ar = Tuple.arity t in
       (* List.iter (fun t -> Msg.debug (fun m -> m "ar(%a) = %d" Tuple.pp t ar)) tuples; *)
       if List.exists (fun t2 -> Tuple.arity t2 <> ar) ts then
+        (*Msg.debug (fun m -> m "incompatible tuples %a\n" TS.pp (TS.of_tuples tuples));*)
         Msg.Fatal.incompatible_arities (fun args -> args infile id);
       TS.of_tuples tuples
 
@@ -195,7 +196,13 @@ let check_tuples_arities_and_duplicates infile id = function
   in
   walk raw_bound*)
 
-let rec compute_simple_bound (infile : string option) (domain : Domain.t) (id : Raw_ident.t) (b : raw_bound) (which : [ `Inf | `Sup | `Exact ]) : Tuple_set.t =
+let raw_bin_string b = match b with
+    | `Union -> "union"
+    | `Inter -> "inter"
+    | `Diff -> "diff"
+    | `Join  -> "join"
+
+let rec compute_simple_bound (infile : string option) (domain : Domain.t) (id : Raw_ident.t) (b : raw_bound) (which : [ `Inf | `Sup | `Exact ]) : TS.t =
     match b with
     | BUniv -> (Domain.univ_atoms domain)
     | BNone -> Tuple_set.empty
@@ -209,8 +216,13 @@ let rec compute_simple_bound (infile : string option) (domain : Domain.t) (id : 
     | BBin (rb1, o, rb2) ->
         let b1 = compute_simple_bound infile domain id rb1 which in
         let b2 = compute_simple_bound infile domain id rb2 which in
-        if TS.inferred_arity b1 = TS.inferred_arity b2 then TS.raw_binop o b1 b2
-        else Msg.Fatal.incompatible_arities @@ fun args -> args infile id
+        let a1 = TS.inferred_arity b1 in
+        let a2 = TS.inferred_arity b2 in
+        if (not (same_arity_raw_bin o) || (a1 = a2) || (a1 <> 0) || (a2 <> 0))
+            then TS.raw_binop o b1 b2
+            else
+                (*Msg.debug (fun m -> m "compute_simple_bound incompatible tuples %s\n %a\n %a\n" (raw_bin_string o) TS.pp b1 TS.pp b2);*)
+                Msg.Fatal.incompatible_arities @@ fun args -> args infile id
     | BRef ref_id -> 
         (match Domain.get (Name.of_raw_ident ref_id) domain with
         | None -> Msg.Fatal.undeclared_id (fun args -> args infile ref_id)
@@ -248,6 +260,9 @@ let compute_sup_bound (infile : string option) (domain : Domain.t) (id : Raw_ide
             let sup1 = go b1 in
             let sup2 = go b2 in
             Scope.sup_binop sup1 o sup2
+        | BMult (m,b) ->
+            let sup = go b in
+            Scope.sup_apply_multiplicity m sup
         | _ -> 
             let ts = compute_simple_bound infile domain id b `Sup in
             Scope.SupNode (ts,Valuations_list.empty)
@@ -329,15 +344,16 @@ let decide_arity infile id specified_arity computed_arity =
 
 let compute_decl infile domain = function
   | DConst (id, specified_arity, raw_scope) ->
-      (* Msg.debug (fun m -> m "Raw_to_ast.compute_decl:DConst"); *)
+      (*Msg.debug (fun m -> m "Raw_to_ast.compute_decl:DConst %a" Raw_ident.pp id);*)
       check_name infile id domain;
       let scope = compute_scope infile domain id raw_scope in
       (* deal with posisble mismatch btw the computed arity and that declared *)
       let computed_arity = Scope.inferred_arity scope in
       let arity = decide_arity infile id specified_arity computed_arity in
+      (*Msg.debug (fun m -> m "Raw_to_ast.compute_decl:DConst %a done" Raw_ident.pp id);*)
       Relation.const (Name.of_raw_ident id) arity scope
   | DVar (id, specified_arity, init, fby) ->
-      (* Msg.debug (fun m -> m "Raw_to_ast.compute_decl:DVar"); *)
+      (*Msg.debug (fun m -> m "Raw_to_ast.compute_decl:DVar %a" Raw_ident.pp id);*)
       check_name infile id domain;
       let init_scope = compute_scope infile domain id init in
       let fby_scope = Option.map (compute_scope infile domain id) fby in
@@ -351,6 +367,7 @@ let compute_decl infile domain = function
         | Some ar -> ar
       in
       let arity = decide_arity infile id specified_arity computed_arity in
+      (*Msg.debug (fun m -> m "Raw_to_ast.compute_decl:DVar %a done" Raw_ident.pp id);*)
       Relation.var (Name.of_raw_ident id) arity init_scope fby_scope
 
 let compute_domain (pb : Raw.raw_problem) =

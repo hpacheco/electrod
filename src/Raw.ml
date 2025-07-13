@@ -46,6 +46,7 @@ and raw_bound =
   | BProd of raw_bound * raw_multiplicity * raw_multiplicity * raw_bound
   | BBin of raw_bound * raw_bin * raw_bound
   | BElts of raw_element list
+  | BMult of raw_multiplicity * raw_bound
 
 and raw_bin = [ `Union | `Inter | `Diff | `Join ]
 
@@ -84,6 +85,9 @@ let binter b1 b2 = BBin (b1, `Inter, b2)
 let bdiff b1 b2 = BBin (b1, `Diff, b2)
 let bjoin b1 b2 = BBin (b1, `Join, b2)
 let belts elts = BElts elts
+let bmult m s = match m with
+    | None -> s
+    | Some m -> BMult (Some m,s)
 let sexact b = SExact b
 let sinexact b1 mult b2 = SInexact (b1, mult, b2)
 let dconst atom arity scope = DConst (atom, arity, scope)
@@ -95,3 +99,9 @@ let problem file raw_univ raw_decls raw_goal raw_invar raw_inst raw_syms =
   { file; raw_univ; raw_decls; raw_goal; raw_invar; raw_inst; raw_syms }
 
 let decl_id = function DConst (id, _, _) | DVar (id, _, _, _) -> id
+
+let same_arity_raw_bin (o: raw_bin) : bool = match o with
+    | `Union -> true
+    | `Inter -> true
+    | `Diff -> true
+    | `Join -> false

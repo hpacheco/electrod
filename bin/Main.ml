@@ -58,7 +58,7 @@ let ensure_session_leader () =
 
 let main_forward style_renderer verbosity tool file scriptfile keep_files no_analysis
     print_generated outcome_format long_names bmc temporal_symmetry
-    symmetry_offset single_formula =
+    symmetry_offset only_used single_formula =
   Logs.app (fun m -> m "Processing file: %s" file);
   (* begin work *)
   try
@@ -109,10 +109,10 @@ let main_forward style_renderer verbosity tool file scriptfile keep_files no_ana
             "Generated \
              file:@.--------------------------------------------------------------------------------@\n\
              %a--------------------------------------------------------------------------------"
-            (Elo_to_smv1.pp ~margin:80)
+            (Elo_to_smv1.pp ~only_used ~margin:80)
             model);
     let res =
-      Elo_to_smv1.analyze ~conversion_time ~cmd ~keep_files ~no_analysis ~elo
+      Elo_to_smv1.analyze ~conversion_time ~cmd ~keep_files ~only_used ~no_analysis ~elo
         ~script ~file ~bmc ~pp_generated:long_names model
     in
     if not no_analysis then (
@@ -157,7 +157,7 @@ let main_backward bmc infofile outfile =
 
 let main style_renderer verbosity tool file scriptfile keep_files no_analysis
     print_generated outcome_format long_names bmc temporal_symmetry
-    symmetry_offset single_formula back_trace =
+    symmetry_offset single_formula only_used back_trace =
     
     let long_names =
       (* Debug ==> long names *)
@@ -186,4 +186,4 @@ let main style_renderer verbosity tool file scriptfile keep_files no_analysis
             main_backward bmc infofile file
         | None -> 
             (*Logs.app (fun m -> m "Entering forward mode");*)
-            main_forward style_renderer verbosity tool file scriptfile keep_files no_analysis print_generated outcome_format long_names bmc temporal_symmetry symmetry_offset single_formula
+            main_forward style_renderer verbosity tool file scriptfile keep_files no_analysis print_generated outcome_format long_names bmc temporal_symmetry symmetry_offset only_used single_formula

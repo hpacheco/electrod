@@ -49,6 +49,7 @@ and raw_bound = private
       (** None/Some (lone/one) *)
   | BBin of raw_bound * raw_bin * raw_bound
   | BElts of raw_element list
+  | BMult of raw_multiplicity * raw_bound
 
 and raw_bin = [ `Union | `Inter | `Diff | `Join ]
 
@@ -92,6 +93,7 @@ val binter : raw_bound -> raw_bound -> raw_bound
 val bdiff : raw_bound -> raw_bound -> raw_bound
 val bjoin : raw_bound -> raw_bound -> raw_bound
 val belts : raw_element list -> raw_bound
+val bmult : raw_multiplicity -> raw_bound -> raw_bound
 val sexact : raw_bound -> raw_scope
 val sinexact : raw_bound -> raw_multiplicity -> raw_bound -> raw_scope
 val dconst : Raw_ident.t -> int option -> raw_scope -> raw_declaration
@@ -115,3 +117,5 @@ val problem :
 (** {1 Accessors} *)
 
 val decl_id : raw_declaration -> Raw_ident.t
+
+val same_arity_raw_bin : raw_bin -> bool 

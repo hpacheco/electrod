@@ -46,6 +46,7 @@ val inf : t -> Tuple_set.t
 (** Return the inf and sup bounds of the scope. *)
 
 val sup : t -> Tuple_set.t
+val sup_tuples : sup_t -> Tuple_set.t
 
 val must : t -> Tuple_set.t
 (** Return the must and may (= sup - inf; computation is {b cached})

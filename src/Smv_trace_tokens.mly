@@ -13,7 +13,8 @@
  ******************************************************************************/
 
 %token LOOP STATE FALSE TRUE EQUAL EOF
-%token <Name.t * Tuple.t> ATOMIC
+%token <string> ATOMIC
+%token <int> NUMBER
 
 
 
