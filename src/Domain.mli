@@ -15,8 +15,9 @@
 (** The domain represents the set of relation declarations. It also contains the bitwidth representing integers. *)
 
 open Containers
+module Map = Name.Map
 
-type t
+type t = { decls : Relation.t Map.t; bitwidth : int } 
 (** Virtually: a map between relation names and their definition as sets of
     tuples. *)
 

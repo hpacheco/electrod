@@ -94,7 +94,7 @@ class ['self] computer (elo : Elo.t) =
 
     (* quant *)
     method build_Quant () quant' (_, _, range_color) blk_colors =
-      let blk_color = List.fold_left max_color Static_prop blk_colors in (*hpacheco: replaced max_color_wiwt; it is safe to inline quantifications over frozen vars, for which it suffices to use max_color_wiwt for the range *)
+      let blk_color = List.fold_left max_color Static_prop blk_colors in (* replaced max_color_wiwt; it is safe to inline quantifications over frozen vars, for which it suffices to use max_color_wiwt for the range *)
       let sim_binding_color = max_color_wiwt Static_prop range_color in 
       quant' sim_binding_color blk_color
 

@@ -64,3 +64,5 @@ val to_loop : state -> state
 (** Converts any state to a loop state *)
 
 val pp : format:[ `XML | `Plain | `Chrono ] -> Format.formatter -> t -> unit
+
+val complete_trace : Domain.t -> states -> states

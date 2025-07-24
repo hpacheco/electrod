@@ -58,7 +58,7 @@ let ensure_session_leader () =
 
 let main_forward style_renderer verbosity tool file scriptfile keep_files no_analysis
     print_generated outcome_format long_names bmc temporal_symmetry
-    symmetry_offset only_used single_formula =
+    symmetry_offset only_used single_formula do_bounds =
   Logs.app (fun m -> m "Processing file: %s" file);
   (* begin work *)
   try
@@ -83,7 +83,7 @@ let main_forward style_renderer verbosity tool file scriptfile keep_files no_ana
     let before_conversion = Mtime_clock.now () in
     let model =
       Transfo.(get_exn elo_to_smv_t "to_smv1" |> run)
-        (elo, temporal_symmetry, symmetry_offset, single_formula)
+        (elo, temporal_symmetry, symmetry_offset, single_formula, do_bounds)
     in
     (*Logs.app (fun m -> m "DUMPING %s" (Yojson.Safe.to_string Elo_to_smv1.SMV_atom.dump));*)
     let conversion_time = Mtime.span before_conversion @@ Mtime_clock.now () in
@@ -157,7 +157,7 @@ let main_backward bmc infofile outfile =
 
 let main style_renderer verbosity tool file scriptfile keep_files no_analysis
     print_generated outcome_format long_names bmc temporal_symmetry
-    symmetry_offset single_formula only_used back_trace =
+    symmetry_offset single_formula only_used back_trace do_bounds =
     
     let long_names =
       (* Debug ==> long names *)
@@ -186,4 +186,4 @@ let main style_renderer verbosity tool file scriptfile keep_files no_analysis
             main_backward bmc infofile file
         | None -> 
             (*Logs.app (fun m -> m "Entering forward mode");*)
-            main_forward style_renderer verbosity tool file scriptfile keep_files no_analysis print_generated outcome_format long_names bmc temporal_symmetry symmetry_offset only_used single_formula
+            main_forward style_renderer verbosity tool file scriptfile keep_files no_analysis print_generated outcome_format long_names bmc temporal_symmetry symmetry_offset only_used single_formula do_bounds

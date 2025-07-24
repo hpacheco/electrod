@@ -126,6 +126,12 @@ let only_used =
       {|Generates code only for used atoms.|}
 in
     Arg.(value & opt bool true & info [ "ou"; "only-used" ] ~doc)
+    
+let do_bounds =
+    let doc =
+      {|Tries to use variable bounds to compress their valuations.|}
+in
+    Arg.(value & opt bool true & info [ "db"; "do-bounds" ] ~doc)
 
 (* verbosity options (already def'd in Logs_cli, thx!) *)
 let verb_term = Logs_cli.level ()
@@ -137,7 +143,7 @@ let main_term =
   Term.(
     const Main.main $ color_term $ verb_term $ tool $ infile $ script
     $ keep_files $ no_analysis $ print_generated $ outcome_format $ long_names
-    $ bmc_length $ temporal_symmetry $ symmetry_offset $ single_formula $ only_used $ back_trace)
+    $ bmc_length $ temporal_symmetry $ symmetry_offset $ single_formula $ only_used $ back_trace $do_bounds)
 
 let main_info =
   let doc = "formal analysis of Electrod models" in

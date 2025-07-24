@@ -162,9 +162,9 @@ let backtrace = SMV_file_format.backtrace
 (*let dump = Elo_to_SMV_LTL.Ltl.Atomic.dump*)
 
 let run
-    ((elo, temporal_symmetry, symmetry_offset, single_formula) :
-      Elo.t * bool * int * bool) =
-  Elo_to_SMV_model.run (elo, temporal_symmetry, symmetry_offset, single_formula)
+    ((elo, temporal_symmetry, symmetry_offset, single_formula, do_bounds) :
+      Elo.t * bool * int * bool * bool) =
+  Elo_to_SMV_model.run (elo, temporal_symmetry, symmetry_offset, single_formula, do_bounds)
 
 let transfo = Transfo.make "to_smv1" run
 

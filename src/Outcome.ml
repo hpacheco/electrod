@@ -216,3 +216,31 @@ let pp ~(format : [ `XML | `Plain | `Chrono ]) out trace =
   | `Plain -> PPPlain.pp out trace
   | `Chrono -> PPChrono.pp out trace
   | `XML -> PPXML.pp out trace
+
+let update_valuation (f : Tuple_set.t option -> Tuple_set.t) (key : Name.t) (lst : valuation) =
+  let rec aux acc = function
+    | [] -> List.rev ((key, f None) :: acc)
+    | (k, v) :: rest when Name.equal k key -> List.rev_append acc ((key, f (Some v)) :: rest)
+    | pair :: rest -> aux (pair :: acc) rest
+  in
+  aux [] lst
+
+let complete_trace (domain : Domain.t) (trace : states) : states =
+    
+    let rels = domain.decls in
+    
+    let complete_valuation_with_scope (n : Name.t) (s : Scope.t) (v : valuation) : valuation =
+        let inf = Scope.inf s in
+        let add_inf (vs : Tuple_set.t option) : Tuple_set.t = match vs with
+                | None -> inf
+                | Some ts -> Tuple_set.union ts inf
+        in update_valuation add_inf n v
+    in
+    
+    let complete_valuation (v : valuation) : valuation =
+        Domain.Map.fold (fun name rel acc -> complete_valuation_with_scope name (Relation.scope rel) acc) rels v
+    in    
+    
+    List.map (fun (ty,st) -> (ty,complete_valuation st)) trace
+
+

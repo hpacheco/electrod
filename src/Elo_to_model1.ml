@@ -314,7 +314,7 @@ struct
       Iter.iter (prepare_and prepare_invar) invars;
       (!newElo,!newInits,!newInvars)
 
-  let run (elo, temporal_symmetry, symmetry_offset, single_formula) =
+  let run (elo, temporal_symmetry, symmetry_offset, single_formula, do_bounds) =
     let open Elo in
     (* #781 Handle instance:
 
@@ -397,7 +397,7 @@ struct
       else fs
     in
     let trans = translate_formulas detected_trans in
-    let (newElo,newInits,newInvars) = prepare_elo elo inits invars in
+    let (newElo,newInits,newInvars) = if do_bounds then prepare_elo elo inits invars else (elo,inits,invars) in
     Model.make ~elo:newElo ~init:newInits ~invariant:newInvars ~trans
       ~property:(fml_prop_comment, ltl_prop)
 end

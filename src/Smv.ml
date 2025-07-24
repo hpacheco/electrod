@@ -382,9 +382,14 @@ module Make_SMV_file_format (Ltl : Solver.LTL) :
     let rel = Domain.get_exn name elo.Elo.domain in
     let scope = Relation.scope rel in
     match scope with
-        | Exact ts ->
+        | Exact ts -> 
             let sup_tuples = Option.value ~default:ts tuples in
-            Tuple_set.iter (fun t -> pp_plain_decl vartype out name (Enums.tuple_to_string t)) sup_tuples
+            let inf = ts in
+            Tuple_set.iter (fun t ->
+                let name_str = Name.to_string name in
+                Fmtc.(pf out "DEFINE %s-%s := TRUE;@\n" name_str (Enums.tuple_to_string t))
+                ) (Tuple_set.inter sup_tuples inf);
+            (*Tuple_set.iter (fun t -> pp_plain_decl vartype out name (Enums.tuple_to_string t)) sup_tuples*)
         | Inexact (inf,sup) ->
             let sup_tuples = Option.value ~default:(Scope.sup_tuples sup) tuples in
             Tuple_set.iter (fun t ->
@@ -793,6 +798,7 @@ module Make_SMV_file_format (Ltl : Solver.LTL) :
             exit 1
         
       in
+      let fulltrace = Outcome.complete_trace elo_info.domain trace in
       (*if not @@ Outcome.loop_is_present trace then
         Msg.Fatal.solver_bug (fun args ->
             args cmd "trace is missing a loop state.")
@@ -805,7 +811,7 @@ module Make_SMV_file_format (Ltl : Solver.LTL) :
       in
       Outcome.trace
         (atom_back_renaming, name_back_renaming)
-        elo_info.nbvars conversion_time analysis_time trace
+        elo_info.nbvars conversion_time analysis_time fulltrace
 
   let write_elo_info_to_file file elo_info = 
       let fileinfo = (Filename.chop_extension file ^ ".info") in
